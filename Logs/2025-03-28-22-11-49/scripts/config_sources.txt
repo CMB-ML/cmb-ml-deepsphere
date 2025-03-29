@@ -1,0 +1,14 @@
+main
+Common path: /Users/ammaraljerwi/research/deepsphere-adams/cfg
+    /Users/ammaraljerwi/research/deepsphere-adams/cfg/config_deepsphere.yaml
+    /Users/ammaraljerwi/research/deepsphere-adams/cfg/model/deepsphere/basic_deepsphere.yaml
+    /Users/ammaraljerwi/research/deepsphere-adams/cfg/model/deepsphere/network/base_settings.yaml
+    /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/assembly_deepsphere.yaml
+    /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/pipe_model_deepsphere.yaml
+cmbml_configs
+Common path: /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg
+    /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg/model/analysis/basic_analysis.yaml
+    /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg/splits/2-2.yaml
+    /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg/scenario/scenario.yaml
+    /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg/file_system/common_fs.yaml
+    /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/cfg/local_system/generic_lab.yaml

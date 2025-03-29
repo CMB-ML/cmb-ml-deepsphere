@@ -1,0 +1,12 @@
+[2025-03-28 22:11:49,875][stages][INFO] - Performing pre-run checks. Trying __init__() method for each stage to check for obvious issues.
+[2025-03-28 22:11:49,875][stages][INFO] - Checking initialization for: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,877][stages][INFO] - Checking initialization for: DeterministicTrainingExecutor
+[2025-03-28 22:11:49,897][stages][INFO] - Checking initialization for: PredictionExecutor
+[2025-03-28 22:11:49,902][stages][INFO] - Checking initialization for: BayesianTrainingExecutor
+[2025-03-28 22:11:49,908][stages][INFO] - Checking initialization for: BayesianPredictionExecutor
+[2025-03-28 22:11:49,913][stages][INFO] - Pre-run checks complete.
+[2025-03-28 22:11:49,913][stages][INFO] - Running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,922][stages][INFO] - Done running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,922][stages][WARNING] - Skipping stage logs for stage HydraConfigCheckerExecutor.
+[2025-03-28 22:11:49,922][stages][INFO] - Running stage: DeterministicTrainingExecutor
+[2025-03-28 22:12:19,254][stages][INFO] - Done running stage: DeterministicTrainingExecutor

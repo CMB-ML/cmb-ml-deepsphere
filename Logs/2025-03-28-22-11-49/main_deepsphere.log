@@ -1,0 +1,200 @@
+[2025-03-28 22:11:49,795][__main__][DEBUG] - Running __main__ in /Users/ammaraljerwi/research/deepsphere-adams/main_deepsphere.py
+[2025-03-28 22:11:49,795][cmbml.core.log_maker][DEBUG] - Running cmbml.core.log_maker in /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/log_maker.py
+[2025-03-28 22:11:49,804][cmbml.core.log_maker][WARNING] - File referenced in a defaults was not found: /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/assembly_deepsphere.yaml for line assembly_sim
+[2025-03-28 22:11:49,804][cmbml.core.log_maker][WARNING] - File referenced in a defaults was not found: /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/assembly_deepsphere.yaml for line pipe_model_analysis
+[2025-03-28 22:11:49,875][stages][INFO] - Performing pre-run checks. Trying __init__() method for each stage to check for obvious issues.
+[2025-03-28 22:11:49,875][stages][INFO] - Checking initialization for: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,877][stages][INFO] - Checking initialization for: DeterministicTrainingExecutor
+[2025-03-28 22:11:49,897][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:49,897][stages][INFO] - Checking initialization for: PredictionExecutor
+[2025-03-28 22:11:49,902][deepsphere_unet.stage_executors.C_predict_deterministic][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:49,902][stages][INFO] - Checking initialization for: BayesianTrainingExecutor
+[2025-03-28 22:11:49,907][deepsphere_unet.stage_executors.D_train_bayesian_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:49,908][stages][INFO] - Checking initialization for: BayesianPredictionExecutor
+[2025-03-28 22:11:49,913][deepsphere_unet.stage_executors.E_predict_bayesian][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:49,913][stages][INFO] - Pre-run checks complete.
+[2025-03-28 22:11:49,913][stages][INFO] - Running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,922][cmbml.core.A_check_hydra_configs][DEBUG] - No conflict in Hydra Configs found.
+[2025-03-28 22:11:49,922][stages][INFO] - Done running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:49,922][stages][WARNING] - Skipping stage logs for stage HydraConfigCheckerExecutor.
+[2025-03-28 22:11:49,922][stages][INFO] - Running stage: DeterministicTrainingExecutor
+[2025-03-28 22:11:49,927][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][DEBUG] - Running DeterministicTrainingExecutor execute()
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Creating model using detectors: 30, 44, 70, 100, 143, 217, 353, 545, 857
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Using static learning rate.
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Learning rate is 0.001
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Number of epochs is 200
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Batch size is 11
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Checkpoint every 5 iterations
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Extra check is set to [1, 2, 3, 6, 9]
+[2025-03-28 22:11:49,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Inspecting data for Train split: 
+[2025-03-28 22:11:49,970][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - DeterministicTrainingExecutor.inspect_data() Feature batch shape: torch.Size([2, 12288, 9])
+[2025-03-28 22:11:49,970][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - DeterministicTrainingExecutor.inspect_data() Labels batch shape: torch.Size([2, 1, 12288])
+[2025-03-28 22:11:49,970][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - No validation split found. Training without validation.
+[2025-03-28 22:11:49,970][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - This is not recommended. Consider adding a validation split in the pipeline configuration file.
+[2025-03-28 22:11:49,970][cmbml.core.asset_handlers.appending_csv_handler][WARNING] - Overwriting existing file: /Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/loss_record.csv
+[2025-03-28 22:11:50,724][deepsphere_unet.stage_executors.B_train_deterministic_model][DEBUG] - Testing model output: 
+[2025-03-28 22:11:50,795][deepsphere_unet.stage_executors.pytorch_model_base_executor][DEBUG] - Output result size: torch.Size([1, 1, 12288])
+[2025-03-28 22:11:52,031][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Starting new model.
+[2025-03-28 22:11:52,031][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_init.pth'
+[2025-03-28 22:11:52,477][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 1 Train Loss: 966.0986328125
+[2025-03-28 22:11:52,478][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_1.pth'
+[2025-03-28 22:11:52,712][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 2 Train Loss: 965.7041015625
+[2025-03-28 22:11:52,713][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_2.pth'
+[2025-03-28 22:11:52,980][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 3 Train Loss: 965.3824573863636
+[2025-03-28 22:11:52,981][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_3.pth'
+[2025-03-28 22:11:53,241][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 4 Train Loss: 965.0487393465909
+[2025-03-28 22:11:53,473][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 5 Train Loss: 964.6455965909091
+[2025-03-28 22:11:53,474][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_5.pth'
+[2025-03-28 22:11:53,730][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 6 Train Loss: 964.1903409090909
+[2025-03-28 22:11:53,731][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_6.pth'
+[2025-03-28 22:11:53,987][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 7 Train Loss: 963.4983132102273
+[2025-03-28 22:11:54,226][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 8 Train Loss: 962.9867720170455
+[2025-03-28 22:11:54,477][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 9 Train Loss: 961.7607421875
+[2025-03-28 22:11:54,478][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_9.pth'
+[2025-03-28 22:11:54,741][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 10 Train Loss: 960.9977805397727
+[2025-03-28 22:11:54,741][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_10.pth'
+[2025-03-28 22:11:55,009][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 11 Train Loss: 960.2410333806819
+[2025-03-28 22:11:55,266][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 12 Train Loss: 958.2532848011364
+[2025-03-28 22:11:55,517][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 13 Train Loss: 954.6487926136364
+[2025-03-28 22:11:55,760][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 14 Train Loss: 951.2521306818181
+[2025-03-28 22:11:55,997][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 15 Train Loss: 946.3225319602273
+[2025-03-28 22:11:55,997][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_15.pth'
+[2025-03-28 22:11:56,255][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 16 Train Loss: 942.5094992897727
+[2025-03-28 22:11:56,495][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 17 Train Loss: 937.0309836647727
+[2025-03-28 22:11:56,720][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 18 Train Loss: 928.0750177556819
+[2025-03-28 22:11:56,946][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 19 Train Loss: 923.0620561079545
+[2025-03-28 22:11:57,186][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 20 Train Loss: 921.3064630681819
+[2025-03-28 22:11:57,187][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_20.pth'
+[2025-03-28 22:11:57,446][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 21 Train Loss: 902.8644353693181
+[2025-03-28 22:11:57,690][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 22 Train Loss: 892.7824041193181
+[2025-03-28 22:11:57,935][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 23 Train Loss: 875.8589311079545
+[2025-03-28 22:11:58,182][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 24 Train Loss: 859.0240589488636
+[2025-03-28 22:11:58,423][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 25 Train Loss: 847.7197265625
+[2025-03-28 22:11:58,424][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_25.pth'
+[2025-03-28 22:11:58,672][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 26 Train Loss: 807.7270063920455
+[2025-03-28 22:11:58,907][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 27 Train Loss: 774.7493785511364
+[2025-03-28 22:11:59,142][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 28 Train Loss: 744.4390536221591
+[2025-03-28 22:11:59,388][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 29 Train Loss: 713.3433504971591
+[2025-03-28 22:11:59,631][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 30 Train Loss: 691.5038618607955
+[2025-03-28 22:11:59,632][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_30.pth'
+[2025-03-28 22:11:59,879][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 31 Train Loss: 703.0100763494319
+[2025-03-28 22:12:00,120][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 32 Train Loss: 737.3463689630681
+[2025-03-28 22:12:00,373][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 33 Train Loss: 758.6315696022727
+[2025-03-28 22:12:00,614][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 34 Train Loss: 651.3128551136364
+[2025-03-28 22:12:00,852][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 35 Train Loss: 707.3736239346591
+[2025-03-28 22:12:00,852][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_35.pth'
+[2025-03-28 22:12:01,125][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 36 Train Loss: 668.6544300426136
+[2025-03-28 22:12:01,379][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 37 Train Loss: 607.8805486505681
+[2025-03-28 22:12:01,639][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 38 Train Loss: 554.4391424005681
+[2025-03-28 22:12:01,884][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 39 Train Loss: 527.3037553267045
+[2025-03-28 22:12:02,133][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 40 Train Loss: 542.6234463778409
+[2025-03-28 22:12:02,134][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_40.pth'
+[2025-03-28 22:12:02,403][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 41 Train Loss: 482.1749378551136
+[2025-03-28 22:12:02,631][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 42 Train Loss: 443.7044122869318
+[2025-03-28 22:12:02,861][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 43 Train Loss: 428.15323153409093
+[2025-03-28 22:12:03,106][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 44 Train Loss: 451.02792080965907
+[2025-03-28 22:12:03,349][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 45 Train Loss: 385.9822443181818
+[2025-03-28 22:12:03,350][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_45.pth'
+[2025-03-28 22:12:03,601][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 46 Train Loss: 408.9269353693182
+[2025-03-28 22:12:03,850][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 47 Train Loss: 394.35324928977275
+[2025-03-28 22:12:04,086][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 48 Train Loss: 338.22383256392044
+[2025-03-28 22:12:04,329][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 49 Train Loss: 353.89144620028407
+[2025-03-28 22:12:04,572][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 50 Train Loss: 367.29769620028407
+[2025-03-28 22:12:04,573][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_50.pth'
+[2025-03-28 22:12:04,812][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 51 Train Loss: 330.58103249289775, Combined Loss: 330.58103249289775
+[2025-03-28 22:12:04,812][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:04,813][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:05,068][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 52 Train Loss: 308.48244406960225, Combined Loss: 308.48244406960225
+[2025-03-28 22:12:05,069][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:05,069][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:05,332][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 53 Train Loss: 324.9439808238636, Combined Loss: 324.9439808238636
+[2025-03-28 22:12:05,567][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 54 Train Loss: 295.826416015625, Combined Loss: 295.826416015625
+[2025-03-28 22:12:05,567][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:05,568][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:05,829][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 55 Train Loss: 283.9620916193182, Combined Loss: 283.9620916193182
+[2025-03-28 22:12:05,829][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:05,830][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:05,840][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_55.pth'
+[2025-03-28 22:12:06,102][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 56 Train Loss: 295.57206587357956, Combined Loss: 295.57206587357956
+[2025-03-28 22:12:06,342][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 57 Train Loss: 335.431884765625, Combined Loss: 335.431884765625
+[2025-03-28 22:12:06,584][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 58 Train Loss: 283.4652210582386, Combined Loss: 283.4652210582386
+[2025-03-28 22:12:06,584][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:06,585][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:06,832][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 59 Train Loss: 252.14180131392047, Combined Loss: 252.14180131392047
+[2025-03-28 22:12:06,832][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:06,833][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:07,079][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 60 Train Loss: 242.0148259943182, Combined Loss: 242.0148259943182
+[2025-03-28 22:12:07,079][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:07,080][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:07,091][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_60.pth'
+[2025-03-28 22:12:07,351][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 61 Train Loss: 291.4652654474432, Combined Loss: 291.4652654474432
+[2025-03-28 22:12:07,593][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 62 Train Loss: 412.3482776988636, Combined Loss: 412.3482776988636
+[2025-03-28 22:12:07,832][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 63 Train Loss: 305.9414728338068, Combined Loss: 305.9414728338068
+[2025-03-28 22:12:08,082][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 64 Train Loss: 275.0806329900568, Combined Loss: 275.0806329900568
+[2025-03-28 22:12:08,335][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 65 Train Loss: 265.10635653409093, Combined Loss: 265.10635653409093
+[2025-03-28 22:12:08,335][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_65.pth'
+[2025-03-28 22:12:08,583][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 66 Train Loss: 277.33389559659093, Combined Loss: 277.33389559659093
+[2025-03-28 22:12:08,890][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 67 Train Loss: 343.9482421875, Combined Loss: 343.9482421875
+[2025-03-28 22:12:09,132][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 68 Train Loss: 285.39570756392044, Combined Loss: 285.39570756392044
+[2025-03-28 22:12:09,378][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 69 Train Loss: 258.02701083096593, Combined Loss: 258.02701083096593
+[2025-03-28 22:12:09,625][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 70 Train Loss: 253.43394886363637, Combined Loss: 253.43394886363637
+[2025-03-28 22:12:09,626][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_70.pth'
+[2025-03-28 22:12:09,883][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 71 Train Loss: 269.4976917613636, Combined Loss: 269.4976917613636
+[2025-03-28 22:12:10,129][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 72 Train Loss: 265.52638938210225, Combined Loss: 265.52638938210225
+[2025-03-28 22:12:10,381][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 73 Train Loss: 376.01260653409093, Combined Loss: 376.01260653409093
+[2025-03-28 22:12:10,612][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 74 Train Loss: 282.1716974431818, Combined Loss: 282.1716974431818
+[2025-03-28 22:12:10,852][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 75 Train Loss: 253.19258256392047, Combined Loss: 253.19258256392047
+[2025-03-28 22:12:10,852][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_75.pth'
+[2025-03-28 22:12:11,118][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 76 Train Loss: 248.9950284090909, Combined Loss: 248.9950284090909
+[2025-03-28 22:12:11,361][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 77 Train Loss: 272.05415482954544, Combined Loss: 272.05415482954544
+[2025-03-28 22:12:11,612][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 78 Train Loss: 292.05637428977275, Combined Loss: 292.05637428977275
+[2025-03-28 22:12:11,867][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 79 Train Loss: 301.58174272017044, Combined Loss: 301.58174272017044
+[2025-03-28 22:12:12,133][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 80 Train Loss: 244.30302290482953, Combined Loss: 244.30302290482953
+[2025-03-28 22:12:12,133][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_80.pth'
+[2025-03-28 22:12:12,403][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 81 Train Loss: 230.8021795099432, Combined Loss: 230.8021795099432
+[2025-03-28 22:12:12,403][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:12,404][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:12,645][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 82 Train Loss: 236.3086825284091, Combined Loss: 236.3086825284091
+[2025-03-28 22:12:12,885][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 83 Train Loss: 250.763916015625, Combined Loss: 250.763916015625
+[2025-03-28 22:12:13,142][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 84 Train Loss: 257.314208984375, Combined Loss: 257.314208984375
+[2025-03-28 22:12:13,399][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 85 Train Loss: 233.52567915482953, Combined Loss: 233.52567915482953
+[2025-03-28 22:12:13,400][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_85.pth'
+[2025-03-28 22:12:13,671][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 86 Train Loss: 230.8093927556818, Combined Loss: 230.8093927556818
+[2025-03-28 22:12:13,928][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 87 Train Loss: 258.1787109375, Combined Loss: 258.1787109375
+[2025-03-28 22:12:14,178][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 88 Train Loss: 226.4490411931818, Combined Loss: 226.4490411931818
+[2025-03-28 22:12:14,178][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:14,179][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:14,438][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 89 Train Loss: 216.5133389559659, Combined Loss: 216.5133389559659
+[2025-03-28 22:12:14,439][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:14,439][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:14,684][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 90 Train Loss: 209.7471590909091, Combined Loss: 209.7471590909091
+[2025-03-28 22:12:14,684][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:14,685][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:14,694][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_90.pth'
+[2025-03-28 22:12:14,948][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 91 Train Loss: 214.62351296164772, Combined Loss: 214.62351296164772
+[2025-03-28 22:12:15,222][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 92 Train Loss: 231.76484818892047, Combined Loss: 231.76484818892047
+[2025-03-28 22:12:15,467][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 93 Train Loss: 279.59206321022725, Combined Loss: 279.59206321022725
+[2025-03-28 22:12:15,712][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 94 Train Loss: 228.7288485440341, Combined Loss: 228.7288485440341
+[2025-03-28 22:12:15,961][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 95 Train Loss: 211.91590465198863, Combined Loss: 211.91590465198863
+[2025-03-28 22:12:15,961][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_95.pth'
+[2025-03-28 22:12:16,218][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 96 Train Loss: 229.07273171164772, Combined Loss: 229.07273171164772
+[2025-03-28 22:12:16,515][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 97 Train Loss: 231.1436434659091, Combined Loss: 231.1436434659091
+[2025-03-28 22:12:16,748][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 98 Train Loss: 253.6436212713068, Combined Loss: 253.6436212713068
+[2025-03-28 22:12:16,991][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 99 Train Loss: 208.4383212002841, Combined Loss: 208.4383212002841
+[2025-03-28 22:12:16,992][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:16,992][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:17,260][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 100 Train Loss: 193.474853515625, Combined Loss: 193.474853515625
+[2025-03-28 22:12:17,261][cmbml.core.asset_handlers.config_handler][DEBUG] - Writing config to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/best_epoch.yaml'
+[2025-03-28 22:12:17,261][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_best.pth'
+[2025-03-28 22:12:17,271][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_100.pth'
+[2025-03-28 22:12:17,523][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 101 Train Loss: 200.25557084517047, Combined Loss: 200.25557084517047
+[2025-03-28 22:12:17,767][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 102 Train Loss: 246.66197620738637, Combined Loss: 246.66197620738637
+[2025-03-28 22:12:18,009][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 103 Train Loss: 229.54456676136363, Combined Loss: 229.54456676136363
+[2025-03-28 22:12:18,250][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 104 Train Loss: 233.39255593039772, Combined Loss: 233.39255593039772
+[2025-03-28 22:12:18,497][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 105 Train Loss: 206.58997691761363, Combined Loss: 206.58997691761363
+[2025-03-28 22:12:18,498][cmbml.core.asset_handlers.pytorch_model_handler][DEBUG] - Writing model to '/Users/ammaraljerwi/research/space/Datasets/I_32_2-2/Bayesian-Deepsphere-Adams_iso/DeepSphere_B_Train_Deterministic/model_105.pth'
+[2025-03-28 22:12:18,770][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 106 Train Loss: 205.0221280184659, Combined Loss: 205.0221280184659
+[2025-03-28 22:12:19,008][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Epoch 107 Train Loss: 197.52030806107953, Combined Loss: 197.52030806107953
+[2025-03-28 22:12:19,254][stages][INFO] - Done running stage: DeterministicTrainingExecutor
+[2025-03-28 22:12:19,262][__main__][INFO] - Pipeline completed.

@@ -1,0 +1,26 @@
+[2025-03-28 22:11:36,652][stages][INFO] - Performing pre-run checks. Trying __init__() method for each stage to check for obvious issues.
+[2025-03-28 22:11:36,652][stages][INFO] - Checking initialization for: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,653][stages][INFO] - Checking initialization for: DeterministicTrainingExecutor
+[2025-03-28 22:11:36,675][stages][INFO] - Checking initialization for: PredictionExecutor
+[2025-03-28 22:11:36,680][stages][INFO] - Checking initialization for: BayesianTrainingExecutor
+[2025-03-28 22:11:36,685][stages][INFO] - Checking initialization for: BayesianPredictionExecutor
+[2025-03-28 22:11:36,690][stages][INFO] - Pre-run checks complete.
+[2025-03-28 22:11:36,690][stages][INFO] - Running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,698][stages][INFO] - Done running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,698][stages][WARNING] - Skipping stage logs for stage HydraConfigCheckerExecutor.
+[2025-03-28 22:11:36,698][stages][INFO] - Running stage: DeterministicTrainingExecutor
+[2025-03-28 22:11:36,757][stages][ERROR] - An exception occurred during stage: DeterministicTrainingExecutor
+Traceback (most recent call last):
+  File "/Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/pipeline_context.py", line 75, in _run_executor
+    executor.execute()
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/B_train_deterministic_model.py", line 110, in execute
+    model = self.make_model().to(self.device)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/pytorch_model_base_executor.py", line 115, in make_model
+    return SphericalUNet(**self.model_dict)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/unet_model.py", line 27, in __init__
+    self.laps = get_laplacians(N, depth, laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 191, in get_laplacians
+    G = healpix_graph(subdivisions, lap_type=laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 105, in healpix_graph
+    from pygsp import graphs
+ModuleNotFoundError: No module named 'pygsp'

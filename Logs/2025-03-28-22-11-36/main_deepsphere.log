@@ -1,0 +1,71 @@
+[2025-03-28 22:11:36,540][__main__][DEBUG] - Running __main__ in /Users/ammaraljerwi/research/deepsphere-adams/main_deepsphere.py
+[2025-03-28 22:11:36,540][cmbml.core.log_maker][DEBUG] - Running cmbml.core.log_maker in /Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/log_maker.py
+[2025-03-28 22:11:36,548][cmbml.core.log_maker][WARNING] - File referenced in a defaults was not found: /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/assembly_deepsphere.yaml for line assembly_sim
+[2025-03-28 22:11:36,548][cmbml.core.log_maker][WARNING] - File referenced in a defaults was not found: /Users/ammaraljerwi/research/deepsphere-adams/cfg/pipeline/assembly_deepsphere.yaml for line pipe_model_analysis
+[2025-03-28 22:11:36,652][stages][INFO] - Performing pre-run checks. Trying __init__() method for each stage to check for obvious issues.
+[2025-03-28 22:11:36,652][stages][INFO] - Checking initialization for: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,653][stages][INFO] - Checking initialization for: DeterministicTrainingExecutor
+[2025-03-28 22:11:36,675][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:36,675][stages][INFO] - Checking initialization for: PredictionExecutor
+[2025-03-28 22:11:36,680][deepsphere_unet.stage_executors.C_predict_deterministic][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:36,680][stages][INFO] - Checking initialization for: BayesianTrainingExecutor
+[2025-03-28 22:11:36,685][deepsphere_unet.stage_executors.D_train_bayesian_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:36,685][stages][INFO] - Checking initialization for: BayesianPredictionExecutor
+[2025-03-28 22:11:36,690][deepsphere_unet.stage_executors.E_predict_bayesian][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:36,690][stages][INFO] - Pre-run checks complete.
+[2025-03-28 22:11:36,690][stages][INFO] - Running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,698][cmbml.core.A_check_hydra_configs][DEBUG] - No conflict in Hydra Configs found.
+[2025-03-28 22:11:36,698][stages][INFO] - Done running stage: HydraConfigCheckerExecutor
+[2025-03-28 22:11:36,698][stages][WARNING] - Skipping stage logs for stage HydraConfigCheckerExecutor.
+[2025-03-28 22:11:36,698][stages][INFO] - Running stage: DeterministicTrainingExecutor
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - MPS is not supported for sparse models. Using CPU.
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][DEBUG] - Running DeterministicTrainingExecutor execute()
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Creating model using detectors: 30, 44, 70, 100, 143, 217, 353, 545, 857
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Using static learning rate.
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Learning rate is 0.001
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Number of epochs is 200
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Batch size is 11
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Checkpoint every 5 iterations
+[2025-03-28 22:11:36,703][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Extra check is set to [1, 2, 3, 6, 9]
+[2025-03-28 22:11:36,704][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - Inspecting data for Train split: 
+[2025-03-28 22:11:36,756][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - DeterministicTrainingExecutor.inspect_data() Feature batch shape: torch.Size([2, 12288, 9])
+[2025-03-28 22:11:36,757][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - DeterministicTrainingExecutor.inspect_data() Labels batch shape: torch.Size([2, 1, 12288])
+[2025-03-28 22:11:36,757][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - No validation split found. Training without validation.
+[2025-03-28 22:11:36,757][deepsphere_unet.stage_executors.B_train_deterministic_model][INFO] - This is not recommended. Consider adding a validation split in the pipeline configuration file.
+[2025-03-28 22:11:36,757][stages][ERROR] - An exception occurred during stage: DeterministicTrainingExecutor
+Traceback (most recent call last):
+  File "/Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/pipeline_context.py", line 75, in _run_executor
+    executor.execute()
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/B_train_deterministic_model.py", line 110, in execute
+    model = self.make_model().to(self.device)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/pytorch_model_base_executor.py", line 115, in make_model
+    return SphericalUNet(**self.model_dict)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/unet_model.py", line 27, in __init__
+    self.laps = get_laplacians(N, depth, laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 191, in get_laplacians
+    G = healpix_graph(subdivisions, lap_type=laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 105, in healpix_graph
+    from pygsp import graphs
+ModuleNotFoundError: No module named 'pygsp'
+[2025-03-28 22:11:36,762][__main__][ERROR] - An exception occured during the pipeline.
+Traceback (most recent call last):
+  File "/Users/ammaraljerwi/research/deepsphere-adams/main_deepsphere.py", line 54, in run_deepsphere
+    pipeline_context.run_pipeline()
+  File "/Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/pipeline_context.py", line 59, in run_pipeline
+    self._run_executor(executor)
+  File "/Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/pipeline_context.py", line 79, in _run_executor
+    raise e
+  File "/Users/ammaraljerwi/anaconda3/envs/cmb-ml/lib/python3.9/site-packages/cmbml/core/pipeline_context.py", line 75, in _run_executor
+    executor.execute()
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/B_train_deterministic_model.py", line 110, in execute
+    model = self.make_model().to(self.device)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/stage_executors/pytorch_model_base_executor.py", line 115, in make_model
+    return SphericalUNet(**self.model_dict)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/unet_model.py", line 27, in __init__
+    self.laps = get_laplacians(N, depth, laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 191, in get_laplacians
+    G = healpix_graph(subdivisions, lap_type=laplacian_type)
+  File "/Users/ammaraljerwi/research/deepsphere-adams/deepsphere_unet/deepsphere/laplacian.py", line 105, in healpix_graph
+    from pygsp import graphs
+ModuleNotFoundError: No module named 'pygsp'
+[2025-03-28 22:11:36,762][__main__][INFO] - Pipeline completed.
