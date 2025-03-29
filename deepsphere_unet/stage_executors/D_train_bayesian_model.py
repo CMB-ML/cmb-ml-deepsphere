@@ -98,7 +98,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
 
         if valid_split is not None:
             valid_dataset = self.set_up_dataset(valid_split)
-            valid_dataloader = DataLoader(valid_dataset, batch_size=self.batch_size, shuffle=True)
+            valid_dataloader = DataLoader(valid_dataset, batch_size=self.batch_size, shuffle=False)
             logger.info(f"Inspecting data for {valid_split.name} split: ")
             self.inspect_data(valid_dataloader)
             loss_record_headers = ["epoch", "train_loss", "valid_loss"]

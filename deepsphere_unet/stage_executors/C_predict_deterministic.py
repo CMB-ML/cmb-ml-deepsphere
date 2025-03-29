@@ -13,9 +13,10 @@ from .pytorch_model_base_executor import BaseDeepSphereModelExecutor
 from cmbml.core.asset_handlers import HealpyMap            # Import for typing hint
 
 from deepsphere_unet.dataset import TestCMBMapDataset
+import healpy as hp
+
 
 logger = logging.getLogger(__name__)
-
 
 class PredictionExecutor(BaseDeepSphereModelExecutor):
     def __init__(self, cfg: DictConfig) -> None:
@@ -68,6 +69,7 @@ class PredictionExecutor(BaseDeepSphereModelExecutor):
                 for pred, idx in zip(predictions, idcs):
                     with self.name_tracker.set_context("sim_num", idx.item()):
                         pred_npy = pred.detach().cpu().numpy()
+                        pred_npy = hp.reorder(pred_npy, n2r=True)
                         self.out_cmb_asset.write(data=pred_npy)
 
     def set_up_dataset(self, template_split: Split) -> None:

@@ -8,11 +8,13 @@ from tqdm import tqdm
 from omegaconf import DictConfig
 
 from cmbml.core import Split, Asset
-from deepsphere_unet.dataset import TestCMBMapDataset
 from cmbml.core.asset_handlers.pytorch_model_handler import PyTorchModel  # Import for typing hint
 from .pytorch_model_base_executor import BayesianDeepSphereModelExecutor
 from cmbml.core.asset_handlers import HealpyMap            # Import for typing hint
 
+from deepsphere_unet.dataset import TestCMBMapDataset
+
+import healpy as hp
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,7 @@ class BayesianPredictionExecutor(BayesianDeepSphereModelExecutor):
             for pred, idx in zip(predictions[0], idcs):
                 with self.name_tracker.set_context("sim_num", idx.item()):
                     pred_npy = pred.detach().cpu().numpy()
+                    pred_npy = hp.reorder(pred_npy, n2r=True)
                     self.out_cmb_asset.write(data=pred_npy)
         else:
             model.train()
@@ -87,6 +90,7 @@ class BayesianPredictionExecutor(BayesianDeepSphereModelExecutor):
                 logvars = out[1]
                 var = torch.mean(mus**2, dim=0) - (mus.mean(dim=0)**2) + (0.5* torch.mean(torch.exp(logvars), dim=0))
                 std = torch.pow(var, 0.5).detach().cpu().numpy()
+                std = hp.reorder(std, n2r=True)
                 with self.name_tracker.set_context("sim_num", idx.item()):
                     self.out_uncertainty_asset.write(data=std)
                            

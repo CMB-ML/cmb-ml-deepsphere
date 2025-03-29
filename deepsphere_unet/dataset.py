@@ -1,7 +1,19 @@
 from torch.utils.data import Dataset
 import torch
 
+import healpy as hp
 
+def reorder_map(map, r2n=False, n2r=False):
+    unit = map.unit
+    data = map.value
+
+    if r2n:
+        data = hp.reorder(data, r2n=True)
+    elif n2r:
+        data = hp.reorder(data, n2r=True)
+    else:
+        raise ValueError("Either r2n or n2r must be set to True")
+    return data * unit
 class TrainCMBMapDataset(Dataset):
     def __init__(self, 
                  n_sims,
@@ -101,6 +113,7 @@ def _get_features_idx(freqs, path_template, handler, n_map_fields, sim_idx):
     for freq in freqs:
         feature_path = path_template.format(sim_idx=sim_idx, freq=freq)
         feature_data = handler.read(feature_path)
+        feature_data = reorder_map(feature_data, r2n=True)
         # Assume that we run either I or IQU
         features.append(feature_data[:n_map_fields, :])
     return features
@@ -109,6 +122,7 @@ def _get_features_idx(freqs, path_template, handler, n_map_fields, sim_idx):
 def _get_label_idx(path_template, handler, n_map_fields, sim_idx):
     label_path = path_template.format(sim_idx=sim_idx)
     label = handler.read(label_path)
+    label = reorder_map(label, r2n=True)
     if label.shape[0] == 3 and n_map_fields == 1:
         label = label[0, :]
     return label
