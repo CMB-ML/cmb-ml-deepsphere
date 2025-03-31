@@ -8,7 +8,7 @@ from tqdm import tqdm
 from omegaconf import DictConfig
 
 from cmbml.core import Split, Asset
-from cmbml.core.asset_handlers.pytorch_model_handler import PyTorchModel  # Import for typing hint
+from cmbml.torch.pytorch_model_handler import PyTorchModel  # Import for typing hint
 from .pytorch_model_base_executor import BayesianDeepSphereModelExecutor
 from cmbml.core.asset_handlers import HealpyMap            # Import for typing hint
 
