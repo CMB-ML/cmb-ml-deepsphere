@@ -1,8 +1,10 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# 
+
 import torch
 import torch.nn as nn
 
-from .utils import SphericalChebBN2, SphericalChebBNPool
-from .chebyshev import SphericalChebConv
+from .utils import SphericalChebBN2
 
 class SphericalChebBNPoolConcat(nn.Module):
     """Building Block calling a SphericalChebBNPool Block

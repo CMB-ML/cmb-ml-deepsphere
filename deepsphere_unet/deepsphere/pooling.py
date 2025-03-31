@@ -1,3 +1,6 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# Modified upsampling portion to use nearest neighbor interpolation 
+
 import torch.nn as nn
 import torch.nn.functional as F
 

@@ -1,3 +1,6 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# 
+
 from torch import nn
 
 from .utils import SphericalChebBN2, SphericalChebBNPool2

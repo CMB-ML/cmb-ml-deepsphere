@@ -1,8 +1,9 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# Modified to include SpatialConcreteDropout
 import torch.nn.functional as F
 from torch import nn
 import torch
 
-from .chebyshev import SphericalChebConv
 from .bayesian_cheb import ConcreteDropoutChebConv
 
 

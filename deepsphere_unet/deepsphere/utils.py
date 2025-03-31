@@ -1,3 +1,6 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# 
+
 import torch.nn.functional as F
 from torch import nn
 

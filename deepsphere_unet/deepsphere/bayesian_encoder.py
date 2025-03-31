@@ -1,3 +1,5 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# Modified to include SpatialConcreteDropout
 from torch import nn
 
 from .bayesian_utils import BayesianSphericalChebBN2, BayesianSphericalChebBNPool2

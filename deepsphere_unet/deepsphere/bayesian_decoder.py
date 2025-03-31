@@ -1,3 +1,5 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# Modified to include SpatialConcreteDropout
 import torch
 import torch.nn as nn
 

@@ -1,3 +1,6 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# 
+
 from scipy import sparse
 from scipy.sparse import coo_matrix
 import numpy as np

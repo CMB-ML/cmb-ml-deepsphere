@@ -1,3 +1,5 @@
+# From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
+# Modified to include SpatialConcreteDropout
 """
 Chebyshev convolution layer. For the moment taking as-is from Michaël Defferrard's implementation. 
 """
