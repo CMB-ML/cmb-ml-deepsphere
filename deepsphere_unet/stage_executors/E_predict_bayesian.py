@@ -80,7 +80,7 @@ class BayesianPredictionExecutor(BayesianDeepSphereModelExecutor):
                 with self.name_tracker.set_context("sim_num", idx.item()):
                     pred_npy = pred.detach().cpu().numpy()
                     pred_npy = hp.reorder(pred_npy, n2r=True)
-                    self.out_cmb_asset.write(data=pred_npy)
+                    self.out_cmb_asset.write(data=pred_npy, column_units=['uK_CMB'])
         else:
             model.train()
             for feature, idx in zip(features, idcs):
@@ -92,7 +92,7 @@ class BayesianPredictionExecutor(BayesianDeepSphereModelExecutor):
                 std = torch.pow(var, 0.5).detach().cpu().numpy()
                 std = hp.reorder(std, n2r=True)
                 with self.name_tracker.set_context("sim_num", idx.item()):
-                    self.out_uncertainty_asset.write(data=std)
+                    self.out_uncertainty_asset.write(data=std, column_units=['uK_CMB'])
                            
     def set_up_dataset(self, template_split: Split) -> None:
         # We create a dataset for each split instead of a dataset that covers all

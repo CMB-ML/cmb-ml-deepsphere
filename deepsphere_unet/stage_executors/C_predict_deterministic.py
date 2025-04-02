@@ -70,7 +70,7 @@ class PredictionExecutor(BaseDeepSphereModelExecutor):
                     with self.name_tracker.set_context("sim_num", idx.item()):
                         pred_npy = pred.detach().cpu().numpy()
                         pred_npy = hp.reorder(pred_npy, n2r=True)
-                        self.out_cmb_asset.write(data=pred_npy)
+                        self.out_cmb_asset.write(data=pred_npy, column_units=['uK_CMB'])
 
     def set_up_dataset(self, template_split: Split) -> None:
         # We create a dataset for each split instead of a dataset that covers all
