@@ -71,3 +71,15 @@ class HealpixUpsample(nn.Upsample):
         x = super().forward(x)
         # Permute back to original shape
         return x.permute(0, 2, 1)
+    
+def ensure_depth(N, depth):
+    """Ensure possibility of depth from nodes
+    Args:
+        N (int): Number of nodes
+        depth (int): Depth of the model
+    """
+    if N < 2**depth:
+        raise ValueError(f"Depth {depth} is too large for N={N}.")
+    if depth < 1:
+        raise ValueError(f"Depth {depth} is too small.")
+    return depth

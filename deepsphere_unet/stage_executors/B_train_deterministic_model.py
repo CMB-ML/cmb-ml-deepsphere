@@ -113,7 +113,7 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         model = self.make_model().to(self.device)
 
         if self.gradient_checkpointing:
-            logger.info(f"Gradient checkpointing is enabled. This will slow down training for reduced memory usage.")
+            logger.info(f"Gradient checkpointing is enabled.")
             model.enable_gradient_checkpointing()
         
         logger.debug(f"Testing model output: ")
@@ -136,7 +136,8 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             with self.name_tracker.set_context("epoch", self.restart_epoch):
                 start_epoch = self.in_model.read(model=model, 
                                                  epoch=self.restart_epoch, 
-                                                 optimizer=optimizer, 
+                                                 optimizer=optimizer,
+                                                 scaler=scaler, 
                                                 )
             if start_epoch == "init":
                 start_epoch = 0
@@ -168,7 +169,7 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                     with self.name_tracker.set_context("epoch", "best"):
                         res = {"best_epoch": best_epoch, "best_loss": best_loss}
                         self.out_best_epoch.write(data=res)
-                        self.out_model.write(model=model, optimizer=optimizer, epoch=best_epoch)
+                        self.out_model.write(model=model, optimizer=optimizer, scaler=scaler, epoch=best_epoch)
             else:
                 logger.info(f"Epoch {epoch + 1} Train Loss: {train_loss}")
 
@@ -182,16 +183,17 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                 with self.name_tracker.set_context("epoch", epoch + 1):
                     self.out_model.write(model=model,
                                          optimizer=optimizer,
+                                         scaler=scaler,
                                          epoch=epoch + 1)
 
-    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.grad_scaler, loss_function: torch.nn.Module, train: bool) -> float:
+    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module, train: bool) -> float:
         """Runs the training or validation loop for a single epoch.
 
         Args:
             model (torch.nn.Module): Model to train
             dataloader (DataLoader): Data
             optimizer (torch.optim.Optimizer): Optimizer
-            scaler (torch.amp.grad_scaler): GradScaler for mixed precision training
+            scaler (torch.amp.GradScaler): GradScaler for mixed precision training
             loss_function (torch.nn.Module): Loss
             train (bool): If True, runs the training loop. If False, runs the validation loop.
 
@@ -241,14 +243,14 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             epoch_loss /= n_batches
         return epoch_loss
     
-    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.grad_scaler, loss_function: torch.nn.Module) -> float:
+    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module) -> float:
         """Runs the training loop for a single epoch.
 
         Args:
             model (torch.nn.Module): Model to train
             dataloader (DataLoader): Training Data
             optimizer (torch.optim.Optimizer): Optimizer
-            scaler (torch.amp.grad_scaler): GradScaler for mixed precision training
+            scaler (torch.amp.GradScaler): GradScaler for mixed precision training
             loss_function (torch.nn.Module): Loss
 
         Returns:
@@ -268,7 +270,7 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         Returns:
             float: validation loss for the epoch
         """
-        return self.one_pass(model, dataloader, None, loss_function, train=False)
+        return self.one_pass(model=model, dataloader=dataloader, optimizer=None, scaler=None, loss_function=loss_function, train=False)
 
     def set_up_dataset(self, template_split: Split) -> None:
         cmb_path_template = self.make_fn_template(template_split, self.in_cmb_asset)

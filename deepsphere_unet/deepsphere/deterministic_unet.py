@@ -4,9 +4,9 @@ from torch import nn
 from torch.nn import functional as F
 import torch.utils.checkpoint as cp
 
-from .chebyshev import SphericalChebConv
+from .chebyshev import ChebConv
 from .laplacian import get_laplacians
-from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample
+from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
 
 class SphericalConvBlock(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels, kernel_size=3, gradient_checkpointing=False, **kwargs):
@@ -16,12 +16,12 @@ class SphericalConvBlock(nn.Module):
         self.middle_channels = middle_channels
         self.out_channels = out_channels
         
-        self.cheb1 = SphericalChebConv(in_channels, middle_channels, lap=None, kernel_size=kernel_size, **kwargs)
+        self.cheb1 = ChebConv(in_channels, middle_channels, kernel_size=kernel_size, bias=False)
         self.bn_r1 = nn.Sequential(
             HealpixBatchNorm(middle_channels),
             nn.ReLU()
         )
-        self.cheb2 = SphericalChebConv(middle_channels, out_channels, lap=None, kernel_size=kernel_size, **kwargs)
+        self.cheb2 = ChebConv(middle_channels, out_channels, kernel_size=kernel_size, bias=False)
         self.bn_r2 = nn.Sequential(
             HealpixBatchNorm(out_channels),
             nn.ReLU()
@@ -68,19 +68,6 @@ class SphericalConvBlock(nn.Module):
             return cp.checkpoint(self.create_custom_forward(self.forward_body), laplacian, x, use_reentrant=False)
         else:
             return self.forward_body(laplacian, x)
-    
-def ensure_depth(N, depth):
-    """Ensure possibility of depth from nodes
-    Args:
-        N (int): Number of nodes
-        depth (int): Depth of the model
-    """
-    if N < 2**depth:
-        raise ValueError(f"Depth {depth} is too large for N={N}.")
-    if depth < 1:
-        raise ValueError(f"Depth {depth} is too small.")
-    return depth
-
 
 # Does bottleneck count as part of the depth?
 # If so, then depth = 3 + 1
@@ -113,10 +100,9 @@ class SphericalUNet(nn.Module):
             laps = torch.load(laps)
         else:
             laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
-        self.laps = []
+
         for i, lap in enumerate(laps):
             self.register_buffer(f'laplacian_{i}', lap)
-            self.laps.append(getattr(self, f'laplacian_{i}'))
 
         if encoder_channels is not None:
             self.encoder_channels = encoder_channels
@@ -200,7 +186,7 @@ class SphericalUNet(nn.Module):
             torch.Tensor: Output tensor after applying the Spherical UNet.
         """
 
-        laps = [getattr(self, f'laplacian_{i}') for i in range(len(self.laps))]
+        laps = [getattr(self, f'laplacian_{i}') for i in range(self.depth + 1)]
         # Encoder
         enc_features = []
         for i, block in enumerate(self.encoder_block):

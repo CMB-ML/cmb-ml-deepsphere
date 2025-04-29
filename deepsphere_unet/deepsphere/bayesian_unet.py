@@ -9,16 +9,16 @@ from torch import nn
 from torch.nn import functional as F
 import torch.utils.checkpoint as cp
 
-from .chebyshev import SphericalChebConv
+from .chebyshev import ChebConv
 from .laplacian import get_laplacians
-from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample
 from .dropout import SpatialConcreteDropout
+from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
 
 class ConcreteDropoutChebConv(nn.Module):
-    def __init__(self, in_channels, out_channels, lap, kernel_size, weight_regularizer=1e-6, dropout_regularizer=1e-5):
+    def __init__(self, in_channels, out_channels, kernel_size, bias=True, weight_regularizer=1e-6, dropout_regularizer=1e-5):
         super().__init__()
 
-        self.chebconv = SphericalChebConv(in_channels, out_channels, lap, kernel_size)
+        self.chebconv = ChebConv(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, bias=bias)
         self.dropout = SpatialConcreteDropout(weight_regularizer=weight_regularizer, dropout_regularizer=dropout_regularizer)
     
     def forward(self, lap, x):
@@ -35,9 +35,9 @@ class SphericalConvBlock(nn.Module):
         self.dropout_regularizer = dropout_regularizer
         
         self.cheb1 = ConcreteDropoutChebConv(in_channels,
-                                             middle_channels, 
-                                             lap=None, 
+                                             middle_channels,  
                                              kernel_size=kernel_size, 
+                                             bias=False,
                                              weight_regularizer=weight_regularizer,
                                              dropout_regularizer=dropout_regularizer, 
                                              **kwargs)
@@ -47,8 +47,8 @@ class SphericalConvBlock(nn.Module):
         )
         self.cheb2 = ConcreteDropoutChebConv(middle_channels, 
                                              out_channels, 
-                                             lap=None, 
                                              kernel_size=kernel_size,
+                                             bias=False,
                                              weight_regularizer=weight_regularizer,
                                              dropout_regularizer=dropout_regularizer,  
                                              **kwargs)
@@ -99,17 +99,7 @@ class SphericalConvBlock(nn.Module):
         else:
             return self.forward_body(laplacian, x)
     
-def ensure_depth(N, depth):
-    """Ensure possibility of depth from nodes
-    Args:
-        N (int): Number of nodes
-        depth (int): Depth of the model
-    """
-    if N < 2**depth:
-        raise ValueError(f"Depth {depth} is too large for N={N}.")
-    if depth < 1:
-        raise ValueError(f"Depth {depth} is too small.")
-    return depth
+
 
 
 # Does bottleneck count as part of the depth?
@@ -145,11 +135,10 @@ class BayesianSphericalUNet(nn.Module):
             laps = torch.load(laps)
         else:
             laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
-        self.laps = []
+        
         for i, lap in enumerate(laps):
             self.register_buffer(f'laplacian_{i}', lap)
-            self.laps.append(getattr(self, f'laplacian_{i}'))
-
+            
         if encoder_channels is not None:
             self.encoder_channels = encoder_channels
             assert len(encoder_channels) == self.depth, "Encoder channels must match the depth of the model."
@@ -245,7 +234,7 @@ class BayesianSphericalUNet(nn.Module):
             torch.Tensor: Output tensor after applying the Spherical UNet.
         """
 
-        laps = [getattr(self, f'laplacian_{i}') for i in range(len(self.laps))]
+        laps = [getattr(self, f'laplacian_{i}') for i in range(self.depth + 1)]
         # Encoder
         enc_features = []
         for i, block in enumerate(self.encoder_block):

@@ -51,10 +51,13 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
 
         model_precision = 'float'
         self.dtype = self.dtype_mapping[model_precision]
-        self.choose_device(cfg.model.deepsphere.train.device)
+        self.choose_device(cfg.model.deepsphere.train_bayesian.device)
         if self.device == "mps": # MPS is not supported for sparse models
             logger.info(f"MPS is not supported for sparse models. Using CPU.")
             self.choose_device("cpu")
+
+        self.gradient_checkpointing = cfg.model.deepsphere.train_bayesian.gradient_checkpointing
+        self.mixed_precision = cfg.model.deepsphere.train_bayesian.mixed_precision
 
         self.lr = cfg.model.deepsphere.train_bayesian.learning_rate
         self.n_epochs = cfg.model.deepsphere.train_bayesian.n_epochs
@@ -112,7 +115,12 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             loss_record_headers = ["epoch", "train_loss"]
 
         model = self.make_model().to(self.device)
-        # model = self.transfer_from_deterministic(model)
+        model = self.transfer_from_deterministic(model)
+
+        if self.gradient_checkpointing:
+            model.enable_gradient_checkpointing()
+            logger.info(f"Gradient checkpointing enabled.")
+        
 
         logger.debug(f"Testing model output: ")
         self.try_model(model)
@@ -124,6 +132,13 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         loss_function = self.heteroscedastic_loss
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
+        if self.mixed_precision:
+            logger.info(f"Using mixed precision training.")
+            scaler = torch.amp.GradScaler(device=self.device)
+        else:
+            logger.info(f"Using full precision training.")
+            scaler = None
+        
         if self.restart_epoch is not None:
             logger.info(f"Restarting training at epoch {self.restart_epoch}")
             # The following returns the epoch number stored in the checkpoint 
@@ -132,6 +147,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
                 start_epoch = self.in_model.read(model=model, 
                                                  epoch=self.restart_epoch, 
                                                  optimizer=optimizer, 
+                                                 scaler=scaler,
                                                 )
             if start_epoch == "init":
                 start_epoch = 0
@@ -145,7 +161,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         best_epoch = 0
 
         for epoch in range(start_epoch, self.n_epochs):
-            train_loss = self.train(model, train_dataloader, optimizer, loss_function)
+            train_loss = self.train(model, train_dataloader, optimizer, scaler, loss_function)
             if epoch >= self.start_valid:
                 if valid_dataloader is not None:
                     valid_loss = self.validate(model, valid_dataloader, loss_function)
@@ -163,7 +179,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
                     with self.name_tracker.set_context("epoch", "best"):
                         res = {"best_epoch": best_epoch, "best_loss": best_loss}
                         self.out_best_epoch.write(data=res)
-                        self.out_model.write(model=model, optimizer=optimizer, epoch=best_epoch)
+                        self.out_model.write(model=model, optimizer=optimizer, scaler=scaler, epoch=best_epoch)
             else:
                 logger.info(f"Epoch {epoch + 1} Train Loss: {train_loss}")
 
@@ -177,6 +193,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
                 with self.name_tracker.set_context("epoch", epoch + 1):
                     self.out_model.write(model=model,
                                          optimizer=optimizer,
+                                         scaler=scaler,
                                          epoch=epoch + 1)
 
     def heteroscedastic_loss(self, output, target):
@@ -193,7 +210,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             reg = reg + module.regularization
         return reg
     
-    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, loss_function: torch.nn.Module, train: bool) -> float:
+    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module, train: bool) -> float:
         """Runs the training or validation loop for a single epoch.
 
         Args:
@@ -223,12 +240,21 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
                 labels = labels.to(device=self.device, dtype=self.dtype)
 
                 if train:
-                    optimizer.zero_grad()
-                    output = model(features)
-                    reg = self.get_regularization(model)
-                    loss = loss_function(output, labels) + reg
-                    loss.backward()
-                    optimizer.step()
+                    if self.mixed_precision:
+                        with torch.amp.autocast(device_type=self.device, enabled=True):
+                            output = model(features)
+                            reg = self.get_regularization(model)
+                            loss = loss_function(output, labels) + reg
+                        scaler.scale(loss).backward()
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.zero_grad()
+                        output = model(features)
+                        reg = self.get_regularization(model)
+                        loss = loss_function(output, labels) + reg
+                        loss.backward()
+                        optimizer.step()
                 else:
                     with torch.no_grad():
                         output = model(features)
@@ -242,7 +268,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             epoch_loss /= n_batches
         return epoch_loss
     
-    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, loss_function: torch.nn.Module) -> float:
+    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module) -> float:
         """Runs the training loop for a single epoch.
 
         Args:
@@ -255,7 +281,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             float: training loss for the epoch
         """
 
-        return self.one_pass(model, dataloader, optimizer, loss_function, train=True)
+        return self.one_pass(model, dataloader, optimizer, scaler, loss_function, train=True)
     
     def validate(self, model: torch.nn.Module, dataloader: DataLoader, loss_function: torch.nn.Module) -> float:
         """Runs the validation loop for a single epoch.
@@ -268,7 +294,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         Returns:
             float: validation loss for the epoch
         """
-        return self.one_pass(model, dataloader, None, loss_function, train=False)
+        return self.one_pass(model, dataloader, optimizer=None, scaler=None, loss_function=loss_function, train=False)
 
     def transfer_from_deterministic(self, model: torch.nn.Module) -> torch.nn.Module:
         """Transfer the weights from a deterministic model to a Bayesian model. Assumes "best" epoch is saved.
@@ -279,14 +305,19 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         Returns:
             torch.nn.Module: Bayesian model with transferred weights
         """
+        logger.info(f"Transferring weights from deterministic model to Bayesian model.")
+        # Load the deterministic model weights
         with self.name_tracker.set_context("epoch", "best"):
+            logger.info(f"Loading deterministic model from {self.in_model.path}")
             deterministic_model_weights = torch.load(self.in_model.path)['model_state_dict']
-        # must be a better way to do this but I'm not sure what it isß
+        # must be a better way to do this but I'm not sure what it is
         for key in deterministic_model_weights.keys():
             if key in model.state_dict().keys():
                 model.state_dict()[key].copy_(deterministic_model_weights[key])
-        model.state_dict()['decoder.dec_fin_mu.weight'].copy_(deterministic_model_weights['decoder.dec_fin.weight'])
-        model.state_dict()['decoder.dec_fin_mu.bias'].copy_(deterministic_model_weights['decoder.dec_fin.bias'])
+        model.state_dict()['mu_conv.weight'].copy_(deterministic_model_weights['final_conv.weight'])
+        model.state_dict()['mu_conv.bias'].copy_(deterministic_model_weights['final_conv.bias'])
+
+        logger.info(f"Weights transferred successfully.")
         return model
     
     def set_up_dataset(self, template_split: Split) -> None:

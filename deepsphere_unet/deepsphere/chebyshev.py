@@ -16,6 +16,8 @@ def safe_sparse_matmul(A, B):
     with torch.amp.autocast(device_type=device, enabled=False):
         return torch.sparse.mm(A.float(), B.float())
 
+# Check memory efficiency of this function
+
 def cheb_conv(laplacian, inputs, weight):
     """Chebyshev convolution.
 
@@ -138,49 +140,3 @@ class ChebConv(torch.nn.Module):
         if self.bias is not None:
             outputs += self.bias
         return outputs
-
-
-class SphericalChebConv(nn.Module):
-    """Building Block with a Chebyshev Convolution.
-    """
-
-    def __init__(self, in_channels, out_channels, lap, kernel_size):
-        """Initialization.
-
-        Args:
-            in_channels (int): initial number of channels
-            out_channels (int): output number of channels
-            lap (:obj:`torch.sparse.FloatTensor`): laplacian
-            kernel_size (int): polynomial degree. Defaults to 3.
-        """
-        super().__init__()
-        # self.register_buffer("laplacian", lap, persistent=False)
-
-        self.chebconv = ChebConv(in_channels, out_channels, kernel_size)
-
-    # def state_dict(self, *args, **kwargs):
-    #     """! WARNING !
-
-    #     This function overrides the state dict in order to be able to save the model.
-    #     This can be removed as soon as saving sparse matrices has been added to Pytorch.
-    #     """
-    #     state_dict = super().state_dict(*args, **kwargs)
-    #     del_keys = []
-    #     for key in state_dict:
-    #         if key.endswith("laplacian"):
-    #             del_keys.append(key)
-    #     for key in del_keys:
-    #         del state_dict[key]
-    #     return state_dict
-
-    def forward(self, lap, x):
-        """Forward pass.
-
-        Args:
-            x (:obj:`torch.tensor`): input [batch x vertices x channels/features]
-
-        Returns:
-            :obj:`torch.tensor`: output [batch x vertices x channels/features]
-        """
-        x = self.chebconv(lap, x)
-        return x
