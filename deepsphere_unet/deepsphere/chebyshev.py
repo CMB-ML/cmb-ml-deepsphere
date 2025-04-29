@@ -11,6 +11,10 @@ import math
 import torch
 from torch import nn
 
+def safe_sparse_matmul(A, B):
+    device = A.device.type
+    with torch.amp.autocast(device_type=device, enabled=False):
+        return torch.sparse.mm(A.float(), B.float())
 
 def cheb_conv(laplacian, inputs, weight):
     """Chebyshev convolution.
@@ -37,10 +41,12 @@ def cheb_conv(laplacian, inputs, weight):
     inputs = x0.unsqueeze(0)  # 1 x V x Fin*B
 
     if K > 0:
-        x1 = torch.sparse.mm(laplacian, x0)  # V x Fin*B
+        # x1 = torch.sparse.mm(laplacian, x0)  # V x Fin*B
+        x1 = safe_sparse_matmul(laplacian, x0)  # V x Fin*B
         inputs = torch.cat((inputs, x1.unsqueeze(0)), 0)  # 2 x V x Fin*B
         for _ in range(1, K - 1):
-            x2 = 2 * torch.sparse.mm(laplacian, x1) - x0
+            # x2 = 2 * torch.sparse.mm(laplacian, x1) - x0
+            x2 = 2 * safe_sparse_matmul(laplacian, x1) - x0
             inputs = torch.cat((inputs, x2.unsqueeze(0)), 0)  # M x Fin*B
             x0, x1 = x1, x2
 
@@ -60,7 +66,7 @@ class ChebConv(torch.nn.Module):
     """Graph convolutional layer.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, conv=cheb_conv):
+    def __init__(self, in_channels, out_channels, kernel_size, initialization='xunif', bias=True, conv=cheb_conv):
         """Initialize the Chebyshev layer.
 
         Args:
@@ -86,8 +92,13 @@ class ChebConv(torch.nn.Module):
         else:
             self.register_parameter("bias", None)
 
-        # self.kaiming_initialization()
-        self.xavier_unif_initialization()
+        self.initialization = initialization
+        if self.initialization == 'xunif':
+            self.xavier_unif_initialization()
+        elif self.initialization == 'xnorm':
+            self.xavier_normal_initialization()
+        elif self.initialization == 'kaiming':
+            self.kaiming_initialization()
 
     def kaiming_initialization(self):
         """Initialize weights and bias.
@@ -143,7 +154,7 @@ class SphericalChebConv(nn.Module):
             kernel_size (int): polynomial degree. Defaults to 3.
         """
         super().__init__()
-        self.register_buffer("laplacian", lap)
+        # self.register_buffer("laplacian", lap, persistent=False)
 
         self.chebconv = ChebConv(in_channels, out_channels, kernel_size)
 
@@ -162,7 +173,7 @@ class SphericalChebConv(nn.Module):
     #         del state_dict[key]
     #     return state_dict
 
-    def forward(self, x):
+    def forward(self, lap, x):
         """Forward pass.
 
         Args:
@@ -171,5 +182,5 @@ class SphericalChebConv(nn.Module):
         Returns:
             :obj:`torch.tensor`: output [batch x vertices x channels/features]
         """
-        x = self.chebconv(self.laplacian, x)
+        x = self.chebconv(lap, x)
         return x

@@ -1,4 +1,9 @@
-depth: 4 # no other option yet
+depth: 3 # no other option yet
+# Specify middle and output channels for each block
+encoder_channels: [[64, 64], [128, 128], [256, 256]]
+bottleneck_channels: [512, 256]
+decoder_channels: [[256, 128], [128, 64], [64, 64]]
+# add logic for precomputed laplacian path
 laplacian_type: combinatorial # or normalized (paper uses combinatorial)
 kernel_size: 3
 tau: 0.1

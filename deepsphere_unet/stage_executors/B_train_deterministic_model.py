@@ -3,6 +3,7 @@ import logging
 from tqdm import tqdm
 
 import torch
+from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
 
@@ -51,6 +52,8 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             logger.info(f"MPS is not supported for sparse models. Using CPU.")
             self.choose_device("cpu")
 
+        self.gradient_checkpointing = cfg.model.deepsphere.train.gradient_checkpointing
+        self.mixed_precision = cfg.model.deepsphere.train.mixed_precision
         self.lr = cfg.model.deepsphere.train.learning_rate
         self.n_epochs = cfg.model.deepsphere.train.n_epochs
         self.batch_size = cfg.model.deepsphere.train.batch_size
@@ -108,6 +111,10 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         self.out_loss_record.write(data=loss_record_headers)
         
         model = self.make_model().to(self.device)
+
+        if self.gradient_checkpointing:
+            logger.info(f"Gradient checkpointing is enabled. This will slow down training for reduced memory usage.")
+            model.enable_gradient_checkpointing()
         
         logger.debug(f"Testing model output: ")
         self.try_model(model)
@@ -115,6 +122,12 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         lr = self.lr
         loss_function = torch.nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+        if self.mixed_precision:
+            logger.info(f"Using mixed precision training.")
+            scaler = GradScaler(device=self.device)
+        else:
+            logger.info(f"Using full precision training.")
+            scaler = None
 
         if self.restart_epoch is not None:
             logger.info(f"Restarting training at epoch {self.restart_epoch}")
@@ -137,7 +150,7 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         best_epoch = 0
 
         for epoch in range(start_epoch, self.n_epochs):
-            train_loss = self.train(model, train_dataloader, optimizer, loss_function)
+            train_loss = self.train(model, train_dataloader, optimizer, scaler, loss_function)
             if epoch >= self.start_valid:
                 if valid_dataloader is not None:
                     valid_loss = self.validate(model, valid_dataloader, loss_function)
@@ -171,13 +184,14 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                                          optimizer=optimizer,
                                          epoch=epoch + 1)
 
-    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, loss_function: torch.nn.Module, train: bool) -> float:
+    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.grad_scaler, loss_function: torch.nn.Module, train: bool) -> float:
         """Runs the training or validation loop for a single epoch.
 
         Args:
             model (torch.nn.Module): Model to train
             dataloader (DataLoader): Data
             optimizer (torch.optim.Optimizer): Optimizer
+            scaler (torch.amp.grad_scaler): GradScaler for mixed precision training
             loss_function (torch.nn.Module): Loss
             train (bool): If True, runs the training loop. If False, runs the validation loop.
 
@@ -202,10 +216,18 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
 
                 if train:
                     optimizer.zero_grad()
-                    output = model(features)
-                    loss = loss_function(output, labels)
-                    loss.backward()
-                    optimizer.step()
+                    if self.mixed_precision:
+                        with autocast(device_type=self.device):
+                            output = model(features)
+                            loss = loss_function(output, labels)
+                        scaler.scale(loss).backward()
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        output = model(features)
+                        loss = loss_function(output, labels)
+                        loss.backward()
+                        optimizer.step()
                 else:
                     with torch.no_grad():
                         output = model(features)
@@ -219,20 +241,21 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             epoch_loss /= n_batches
         return epoch_loss
     
-    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, loss_function: torch.nn.Module) -> float:
+    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.grad_scaler, loss_function: torch.nn.Module) -> float:
         """Runs the training loop for a single epoch.
 
         Args:
             model (torch.nn.Module): Model to train
             dataloader (DataLoader): Training Data
             optimizer (torch.optim.Optimizer): Optimizer
+            scaler (torch.amp.grad_scaler): GradScaler for mixed precision training
             loss_function (torch.nn.Module): Loss
 
         Returns:
             float: training loss for the epoch
         """
 
-        return self.one_pass(model, dataloader, optimizer, loss_function, train=True)
+        return self.one_pass(model, dataloader, optimizer, scaler, loss_function, train=True)
     
     def validate(self, model: torch.nn.Module, dataloader: DataLoader, loss_function: torch.nn.Module) -> float:
         """Runs the validation loop for a single epoch.

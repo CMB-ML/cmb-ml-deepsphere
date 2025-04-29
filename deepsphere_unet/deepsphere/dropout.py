@@ -1,4 +1,5 @@
 ## Code is taken and modified from the following repo: https://github.com/aurelio-amerio/ConcreteDropout.git
+
 import torch
 import torch.nn as nn
 
@@ -106,13 +107,19 @@ class SpatialConcreteDropout(nn.Module):
         # regularizer
         return torch.sum(kernel_regularizer + dropout_regularizer)
 
-    def forward(self, x, layer):
+    def forward(self, lap, x, layer):
         self.p = torch.sigmoid(self.p_logit)
         self.regularization = self.get_regularization(x, layer)
         if self.is_mc_dropout:
-            return layer(self._concrete_dropout(x))
+            if isinstance(layer, nn.Conv1d):
+                return layer(self._concrete_dropout(x))
+            return layer(lap, self._concrete_dropout(x))
         else:
             if self.training:
-                return layer(self._concrete_dropout(x))
+                if isinstance(layer, nn.Conv1d):
+                    return layer(self._concrete_dropout(x))
+                return layer(lap, self._concrete_dropout(x))
             else:
-                return layer(x)
+                if isinstance(layer, nn.Conv1d):
+                    return layer(x)
+                return layer(lap, x)

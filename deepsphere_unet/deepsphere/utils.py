@@ -1,137 +1,73 @@
 # From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
 # 
 
-import torch.nn.functional as F
 from torch import nn
 
-from .chebyshev import SphericalChebConv
-
-
-class SphericalChebBN(nn.Module):
-    """Building Block with a Chebyshev Convolution, Batchnormalization, and ReLu activation.
-    """
-
-    def __init__(self, in_channels, out_channels, lap, kernel_size):
-        """Initialization.
-
-        Args:
-            in_channels (int): initial number of channels.
-            out_channels (int): output number of channels.
-            lap (:obj:`torch.sparse.FloatTensor`): laplacian.
-            kernel_size (int, optional): polynomial degree. Defaults to 3.
-        """
-        super().__init__()
-        self.spherical_cheb = SphericalChebConv(in_channels, out_channels, lap, kernel_size)
-        self.batchnorm = nn.BatchNorm1d(out_channels)
-
+class HealpixBatchNorm(nn.BatchNorm1d):
     def forward(self, x):
-        """Forward Pass.
+        """Forward pass of the batch normalization layer.
 
         Args:
-            x (:obj:`torch.tensor`): input [batch x vertices x channels/features]
+            x (torch.Tensor): Input tensor of shape [batch x vertices x channels].
 
         Returns:
-            :obj:`torch.tensor`: output [batch x vertices x channels/features]
+            torch.Tensor: Normalized tensor.
         """
-        x = self.spherical_cheb(x)
-        x = self.batchnorm(x.permute(0, 2, 1))
-        x = F.relu(x.permute(0, 2, 1))
-        return x
-    
-    
-class SphericalChebBNPool(nn.Module):
-    """Building Block with a pooling/unpooling, a calling the SphericalChebBN block.
-    """
+        # Permute the input tensor to match the expected shape for BatchNorm1d
+        x = x.permute(0, 2, 1)
+        # Apply batch normalization
+        x = super().forward(x)
+        # Permute back to original shape
+        return x.permute(0, 2, 1)
 
-    def __init__(self, in_channels, out_channels, lap, pooling, kernel_size):
-        """Initialization.
+class HealpixDownsample(nn.MaxPool1d):
+    def __init__(self, kernel_size=4, return_indices=False):
+        """Initialization of the max pooling layer.
 
         Args:
-            in_channels (int): initial number of channels.
-            out_channels (int): output number of channels.
-            lap (:obj:`torch.sparse.FloatTensor`): laplacian.
-            pooling (:obj:`torch.nn.Module`): pooling/unpooling module.
-            kernel_size (int, optional): polynomial degree. Defaults to 3.
+            kernel_size (int, optional): Size of the pooling kernel. Defaults to 4.
+            return_indices (bool, optional): Whether to return indices. Defaults to False.
         """
-        super().__init__()
-        self.pooling = pooling
-        self.spherical_cheb_bn = SphericalChebBN(in_channels, out_channels, lap, kernel_size)
+        super().__init__(kernel_size=kernel_size, return_indices=return_indices)
 
     def forward(self, x):
-        """Forward Pass.
+        """Forward pass of the max pooling layer.
 
         Args:
-            x (:obj:`torch.tensor`): input [batch x vertices x channels/features]
+            x (torch.Tensor): Input tensor of shape [batch x vertices x channels].
 
         Returns:
-            :obj:`torch.tensor`: output [batch x vertices x channels/features]
+            torch.Tensor: Pooled tensor.
         """
-        x = self.pooling(x)
-        x = self.spherical_cheb_bn(x)
-        return x
+        # Permute the input tensor to match the expected shape for MaxPool1d
+        x = x.permute(0, 2, 1)
+        # Apply max pooling
+        x = super().forward(x)
+        # Permute back to original shape
+        return x.permute(0, 2, 1)
 
-    
-class SphericalChebBN2(nn.Module):
-    """Building Block made of 2 Building Blocks (convolution, batchnorm, activation).
-    """
-
-    def __init__(self, in_channels, middle_channels, out_channels, lap, kernel_size):
-        """Initialization.
+class HealpixUpsample(nn.Upsample):
+    def __init__(self, scale_factor=4, mode='nearest'):
+        """Initialization of the upsampling layer.
 
         Args:
-            in_channels (int): initial number of channels.
-            middle_channels (int): middle number of channels.
-            out_channels (int): output number of channels.
-            lap (:obj:`torch.sparse.FloatTensor`): laplacian.
-            kernel_size (int, optional): polynomial degree.
+            scale_factor (int, optional): Scale factor for upsampling. Defaults to None.
+            mode (str, optional): Upsampling mode. Defaults to 'nearest'.
         """
-
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.spherical_cheb_bn_1 = SphericalChebBN(in_channels, middle_channels, lap, kernel_size)
-        self.spherical_cheb_bn_2 = SphericalChebBN(middle_channels, out_channels, lap, kernel_size)
+        super().__init__(scale_factor=scale_factor, mode=mode)
 
     def forward(self, x):
-        """Forward Pass.
+        """Forward pass of the upsampling layer.
 
         Args:
-            x (:obj:`torch.Tensor`): input [batch x vertices x channels/features]
+            x (torch.Tensor): Input tensor of shape [batch x vertices x channels].
 
         Returns:
-            :obj:`torch.Tensor`: output [batch x vertices x channels/features]
+            torch.Tensor: Upsampled tensor.
         """
-        x = self.spherical_cheb_bn_1(x)
-        x = self.spherical_cheb_bn_2(x)
-        return x
-
-class SphericalChebBNPool2(nn.Module):
-    """Building Block with a pooling/unpooling and a Chebyshev Convolution.
-    """
-
-    def __init__(self, in_channels, middle_channels, out_channels, lap, pooling, kernel_size):
-        """Initialization.
-
-        Args:
-            in_channels (int): initial number of channels.
-            out_channels (int): output number of channels.
-            lap (:obj:`torch.sparse.FloatTensor`): laplacian.
-            pooling (:obj:`torch.nn.Module`): pooling/unpooling module.
-            kernel_size (int, optional): polynomial degree.
-        """
-        super().__init__()
-        self.pooling = pooling
-        self.spherical_cheb = SphericalChebBN2(in_channels, middle_channels, out_channels, lap, kernel_size)
-
-    def forward(self, x):
-        """Forward Pass.
-
-        Args:
-            x (:obj:`torch.Tensor`): input [batch x vertices x channels/features]
-
-        Returns:
-            :obj:`torch.Tensor`: output [batch x vertices x channels/features]
-        """
-        x = self.pooling(x)
-        x = self.spherical_cheb(x)
-        return x
+        # Permute the input tensor to match the expected shape for Upsample
+        x = x.permute(0, 2, 1)
+        # Apply upsampling
+        x = super().forward(x)
+        # Permute back to original shape
+        return x.permute(0, 2, 1)

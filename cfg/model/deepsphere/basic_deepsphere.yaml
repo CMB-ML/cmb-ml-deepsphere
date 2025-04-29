@@ -3,15 +3,17 @@ defaults:
   - _self_
 
 train:
-  device           : null  # Goes to None in python
-  learning_rate    : 1e-3
+  device                 : null  # Goes to None in python
+  gradient_checkpointing : true # Set to true to use gradient checkpointing
+  mixed_precision        : false # only use if on cuda
+  learning_rate          : 1e-3
   # n_epochs         : 120     # 
-  n_epochs         : ${num_epochs_deterministic}
-  batch_size       : 11    # Adjust based on GPU Memory, empty A100 with 40GB can handle 11 at nside 128
-  checkpoint_every : 5     # checkpoint every this number of epochs (paper checkpoints every epoch but using 5 not to hog disk space)
-  extra_check      : [1, 2, 3, 6, 9]
-  restart_epoch    : null       # Set to null to create a new model, or give a checkpoint number
-  start_valid      : ${num_epochs_d_valid} # Number of epochs to run before beginning validation
+  n_epochs               : ${num_epochs_deterministic}
+  batch_size             : 11    # Adjust based on GPU Memory, empty A100 with 40GB can handle 11 at nside 128
+  checkpoint_every       : 5     # checkpoint every this number of epochs (paper checkpoints every epoch but using 5 not to hog disk space)
+  extra_check            : [1, 2, 3, 6, 9]
+  restart_epoch          : null       # Set to null to create a new model, or give a checkpoint number
+  start_valid            : ${num_epochs_d_valid} # Number of epochs to run before beginning validation
   # restart_epoch    : 40
 train_bayesian:
   learning_rate    : 1e-4

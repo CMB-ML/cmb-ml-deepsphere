@@ -1,3 +1,6 @@
+# TODO: Add mixed precision training and gradient checkpointing to Bayesian model
+
+
 import logging
 
 from tqdm import tqdm
@@ -109,7 +112,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             loss_record_headers = ["epoch", "train_loss"]
 
         model = self.make_model().to(self.device)
-        model = self.transfer_from_deterministic(model)
+        # model = self.transfer_from_deterministic(model)
 
         logger.debug(f"Testing model output: ")
         self.try_model(model)
