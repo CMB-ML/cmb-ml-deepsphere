@@ -1,4 +1,7 @@
-## Code is taken and modified from the following repo: https://github.com/aurelio-amerio/ConcreteDropout.git
+# Code is a combination of a Keras implementation of *spatial* concrete dropout
+#         with a PyTorch implementation of concrete dropout
+# Keras: https://github.com/yaringal/ConcreteDropout/blob/master/spatial-concrete-dropout-keras.ipynb (class SpatialConcreteDropout)
+# PyTorch: https://github.com/aurelio-amerio/ConcreteDropout/blob/main/src/ConcreteDropout/pytorch.py (class ConcreteDropout)
 
 import torch
 import torch.nn as nn
