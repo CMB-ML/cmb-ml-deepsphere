@@ -1,0 +1,33 @@
+{
+    "version": "0.1",
+    "configurations": [
+      {
+        "name": "Python: Main Debug",
+        "type": "debugpy",
+        "request": "launch",
+        "python": "/home/jim/miniconda3/envs/cmb-ml/bin/python3.9",
+        "program": "/home/jim/VSCode_Projects_SPACE/cmb-ml-deepsphere/main_deepsphere.py",
+        "args": [],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "justMyCode":false,
+        "env": {
+          "CMB_ML_DATA": "/data/jim/CMB_Data"
+        } 
+      },
+      {
+        "name": "Python: Current File Debug",
+        "type": "debugpy",
+        "request": "launch",
+        "python": "/home/jim/miniconda3/envs/cmb-ml/bin/python3.9",
+        "program": "${file}",
+        "args": [],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "justMyCode":false,
+        "env": {
+          "CMB_ML_DATA": "/data/jim/CMB_Data"
+        }
+      }
+    ]
+  }

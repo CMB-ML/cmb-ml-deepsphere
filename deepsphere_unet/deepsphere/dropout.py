@@ -123,3 +123,26 @@ class SpatialConcreteDropout(nn.Module):
                 if isinstance(layer, nn.Conv1d):
                     return layer(x)
                 return layer(lap, x)
+
+    # def forward(self, layer, *args):
+    # # def forward(self, lap, x, layer):
+    #     self.p = torch.sigmoid(self.p_logit)
+    #     self.regularization = self.get_regularization(args[0], layer)
+    #     if self.is_mc_dropout:
+    #         return layer(self._concrete_dropout(args))
+    #     else:
+    #         if self.training:
+    #             return layer(self._concrete_dropout(args))
+    #         else:
+    #             return layer(args)
+
+    # def forward(self, x, layer):
+    #     self.p = torch.sigmoid(self.p_logit)
+    #     self.regularization = self.get_regularization(x, layer)
+    #     if self.is_mc_dropout:
+    #         return layer(self._concrete_dropout(x))
+    #     else:
+    #         if self.training:
+    #             return layer(self._concrete_dropout(x))
+    #         else:
+    #             return layer(x)
