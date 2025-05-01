@@ -1,8 +1,22 @@
 # From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
 # 
 
+import torch
 from torch import nn
 
+class LaplacianModule(nn.Module):
+    """
+    Wrapper class to handle storing Laplacian matrices without duplication
+    """
+    def __init__(self, laplacian: torch.Tensor, laplacian_idx: int):
+        """
+        Args:
+            laplacian (torch.Tensor): Laplacian matrix.
+            laplacian_idx (int): Index of the Laplacian matrix for unique name.
+        """
+        super().__init__()
+        self.laplacian_idx = laplacian_idx
+        self.register_buffer(f"laplacian_{laplacian_idx}", laplacian)
 class HealpixBatchNorm(nn.BatchNorm1d):
     def forward(self, x):
         """Forward pass of the batch normalization layer.
