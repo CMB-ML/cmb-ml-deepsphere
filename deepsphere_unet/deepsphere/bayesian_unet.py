@@ -9,23 +9,43 @@ from torch import nn
 from torch.nn import functional as F
 import torch.utils.checkpoint as cp
 
-from .chebyshev import ChebConv
+from .chebyshev import SphericalChebConv
 from .laplacian import get_laplacians
 from .dropout import SpatialConcreteDropout
-from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
+from .utils import LaplacianModule, HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
 
 class ConcreteDropoutChebConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, bias=True, weight_regularizer=1e-6, dropout_regularizer=1e-5):
+    def __init__(self, 
+                 in_channels, 
+                 out_channels, 
+                 kernel_size, 
+                 laplacian: LaplacianModule, 
+                 bias=True, 
+                 weight_regularizer=1e-6, 
+                 dropout_regularizer=1e-5):
         super().__init__()
 
-        self.chebconv = ChebConv(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, bias=bias)
+        self.chebconv = SphericalChebConv(in_channels=in_channels, 
+                                          out_channels=out_channels, 
+                                          kernel_size=kernel_size, 
+                                          laplacian=laplacian, 
+                                          bias=bias)
         self.dropout = SpatialConcreteDropout(weight_regularizer=weight_regularizer, dropout_regularizer=dropout_regularizer)
     
-    def forward(self, lap, x):
-        x = self.dropout(lap, x, self.chebconv)
+    def forward(self, x):
+        x = self.dropout(x, self.chebconv)
         return x
 class SphericalConvBlock(nn.Module):
-    def __init__(self, in_channels, middle_channels, out_channels, kernel_size=3, weight_regularizer=1e-6, dropout_regularizer=1e-5,  gradient_checkpointing=False, **kwargs):
+    def __init__(self, 
+                 in_channels, 
+                 middle_channels, 
+                 out_channels, 
+                 kernel_size=3, 
+                 laplacian: LaplacianModule = None, 
+                 weight_regularizer=1e-6, 
+                 dropout_regularizer=1e-5,  
+                 gradient_checkpointing=False, 
+                 **kwargs):
         super().__init__()
 
         self.in_channels = in_channels
@@ -36,7 +56,8 @@ class SphericalConvBlock(nn.Module):
         
         self.cheb1 = ConcreteDropoutChebConv(in_channels,
                                              middle_channels,  
-                                             kernel_size=kernel_size, 
+                                             kernel_size=kernel_size,
+                                             laplacian=laplacian, 
                                              bias=False,
                                              weight_regularizer=weight_regularizer,
                                              dropout_regularizer=dropout_regularizer, 
@@ -48,6 +69,7 @@ class SphericalConvBlock(nn.Module):
         self.cheb2 = ConcreteDropoutChebConv(middle_channels, 
                                              out_channels, 
                                              kernel_size=kernel_size,
+                                             laplacian=laplacian,
                                              bias=False,
                                              weight_regularizer=weight_regularizer,
                                              dropout_regularizer=dropout_regularizer,  
@@ -59,7 +81,7 @@ class SphericalConvBlock(nn.Module):
 
         self.gradient_checkpointing = gradient_checkpointing
 
-    def forward_body(self, laplacian, x):
+    def forward_body(self, x):
         """Forward pass of the spherical convolution block.
 
         Args:
@@ -69,19 +91,19 @@ class SphericalConvBlock(nn.Module):
         Returns:
             torch.Tensor: Output tensor after applying the spherical convolution block.
         """
-        x = self.cheb1(laplacian, x)
+        x = self.cheb1(x)
         x = self.bn_r1(x)
-        x = self.cheb2(laplacian, x)
+        x = self.cheb2(x)
         x = self.bn_r2(x)
 
         return x
     
     def create_custom_forward(self, module):
-                def custom_forward(*inputs):
-                    return module(*inputs)
-                return custom_forward
+        def custom_forward(*inputs):
+            return module(*inputs)
+        return custom_forward
 
-    def forward(self, laplacian, x):
+    def forward(self, x):
         """Forward pass of the spherical convolution block with optional gradient checkpointing.
 
         Args:
@@ -92,12 +114,9 @@ class SphericalConvBlock(nn.Module):
             torch.Tensor: Output tensor after applying the spherical convolution block.
         """
         if self.gradient_checkpointing and self.training:
-
-            
-            
-            return cp.checkpoint(self.create_custom_forward(self.forward_body), laplacian, x, use_reentrant=False)
+            return cp.checkpoint(self.create_custom_forward(self.forward_body), x, use_reentrant=False)
         else:
-            return self.forward_body(laplacian, x)
+            return self.forward_body(x)
     
 
 
@@ -132,12 +151,13 @@ class BayesianSphericalUNet(nn.Module):
         self.depth = ensure_depth(self.npix, depth)
         
         if laps is not None:
-            laps = torch.load(laps)
+            _laps = torch.load(laps)
         else:
-            laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
+            _laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
         
-        for i, lap in enumerate(laps):
-            self.register_buffer(f'laplacian_{i}', lap)
+        laps = []
+        for i, lap in enumerate(_laps):
+            laps.append(LaplacianModule(lap, i))
             
         if encoder_channels is not None:
             self.encoder_channels = encoder_channels
@@ -161,6 +181,7 @@ class BayesianSphericalUNet(nn.Module):
                                self.encoder_channels[i][0],
                                self.encoder_channels[i][1],
                                kernel_size=kernel_size,
+                               laplacian=laps[-(1+i)],
                                weight_regularizer=weight_regularizer,
                                dropout_regularizer=dropout_regularizer,
                                )
@@ -170,6 +191,7 @@ class BayesianSphericalUNet(nn.Module):
                                                    self.bottleneck_channels[0],
                                                    self.bottleneck_channels[1],
                                                    kernel_size=kernel_size,
+                                                   laplacian=laps[0],
                                                    weight_regularizer=weight_regularizer,
                                                    dropout_regularizer=dropout_regularizer,
                                                    )
@@ -181,6 +203,7 @@ class BayesianSphericalUNet(nn.Module):
                                self.decoder_channels[i][0],
                                self.decoder_channels[i][1],
                                kernel_size=kernel_size,
+                               laplacian=laps[i+1],
                                weight_regularizer=weight_regularizer,
                                dropout_regularizer=dropout_regularizer,
                                )
@@ -194,6 +217,7 @@ class BayesianSphericalUNet(nn.Module):
         self.logvar_conv = nn.Conv1d(self.decoder_channels[-1][1], 1, kernel_size=1)
         self.logvar_conv.weight.data.normal_(0, 1e-6)
         self.logvar_conv.bias.data.fill_(0)
+
         self.cd_mu = SpatialConcreteDropout(channels_first=True, weight_regularizer=weight_regularizer, dropout_regularizer=dropout_regularizer)
         self.cd_logvar = SpatialConcreteDropout(channels_first=True, weight_regularizer=weight_regularizer, dropout_regularizer=dropout_regularizer)
 
@@ -234,27 +258,27 @@ class BayesianSphericalUNet(nn.Module):
             torch.Tensor: Output tensor after applying the Spherical UNet.
         """
 
-        laps = [getattr(self, f'laplacian_{i}') for i in range(self.depth + 1)]
         # Encoder
         enc_features = []
         for i, block in enumerate(self.encoder_block):
-            x = block(laps[-(i+1)], x)
+            x = block(x)
             enc_features.append(x)
             x = self.pool(x)
             
 
         # Bottleneck
-        x = self.bottleneck_block(laps[0], x)
+        x = self.bottleneck_block(x)
         
         # Decoder
         for i, block in enumerate(self.decoder_block):
             x = self.upsample(x)
             x = torch.cat([x, enc_features.pop()], dim=2)
-            x = block(laps[(i+1)], x)
+            x = block(x)
 
         # Final convolution
         x = x.permute(0, 2, 1)
-        mu = self.cd_mu(lap=None, x=x, layer=self.mu_conv)
-        logvar = self.cd_logvar(lap=None, x=x, layer=self.logvar_conv)
+
+        mu = self.cd_mu(x=x, layer=self.mu_conv)
+        logvar = self.cd_logvar(x=x, layer=self.logvar_conv)
 
         return mu, logvar

@@ -4,24 +4,34 @@ from torch import nn
 from torch.nn import functional as F
 import torch.utils.checkpoint as cp
 
-from .chebyshev import ChebConv
+from .chebyshev import SphericalChebConv
 from .laplacian import get_laplacians
-from .utils import HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
+from .utils import LaplacianModule, HealpixBatchNorm, HealpixDownsample, HealpixUpsample, ensure_depth
 
 class SphericalConvBlock(nn.Module):
-    def __init__(self, in_channels, middle_channels, out_channels, kernel_size=3, gradient_checkpointing=False, **kwargs):
+    """ 
+    Spherical convolution block consisting of two spherical Chebyshev convolutions with batch normalization and ReLU activation.
+    """
+    def __init__(self, 
+                 in_channels, 
+                 middle_channels, 
+                 out_channels, 
+                 kernel_size=3, 
+                 lap: LaplacianModule = None, 
+                 gradient_checkpointing: bool =False, 
+                 **kwargs):
         super().__init__()
 
         self.in_channels = in_channels
         self.middle_channels = middle_channels
         self.out_channels = out_channels
         
-        self.cheb1 = ChebConv(in_channels, middle_channels, kernel_size=kernel_size, bias=False)
+        self.cheb1 = SphericalChebConv(in_channels, middle_channels, kernel_size=kernel_size, laplacian=lap, bias=False)
         self.bn_r1 = nn.Sequential(
             HealpixBatchNorm(middle_channels),
             nn.ReLU()
         )
-        self.cheb2 = ChebConv(middle_channels, out_channels, kernel_size=kernel_size, bias=False)
+        self.cheb2 = SphericalChebConv(middle_channels, out_channels, kernel_size=kernel_size, laplacian=lap, bias=False)
         self.bn_r2 = nn.Sequential(
             HealpixBatchNorm(out_channels),
             nn.ReLU()
@@ -29,29 +39,28 @@ class SphericalConvBlock(nn.Module):
 
         self.gradient_checkpointing = gradient_checkpointing
 
-    def forward_body(self, laplacian, x):
+    def forward_body(self, x):
         """Forward pass of the spherical convolution block.
 
         Args:
-            laplacian (torch.Tensor): Laplacian matrix.
             x (torch.Tensor): Input tensor of shape [batch x vertices x channels].
 
         Returns:
             torch.Tensor: Output tensor after applying the spherical convolution block.
         """
-        x = self.cheb1(laplacian, x)
+        x = self.cheb1(x)
         x = self.bn_r1(x)
-        x = self.cheb2(laplacian, x)
+        x = self.cheb2(x)
         x = self.bn_r2(x)
 
         return x
     
     def create_custom_forward(self, module):
-                def custom_forward(*inputs):
-                    return module(*inputs)
-                return custom_forward
+        def custom_forward(*inputs):
+            return module(*inputs)
+        return custom_forward
 
-    def forward(self, laplacian, x):
+    def forward(self, x):
         """Forward pass of the spherical convolution block with optional gradient checkpointing.
 
         Args:
@@ -62,12 +71,9 @@ class SphericalConvBlock(nn.Module):
             torch.Tensor: Output tensor after applying the spherical convolution block.
         """
         if self.gradient_checkpointing and self.training:
-
-            
-            
-            return cp.checkpoint(self.create_custom_forward(self.forward_body), laplacian, x, use_reentrant=False)
+            return cp.checkpoint(self.create_custom_forward(self.forward_body), x, use_reentrant=False)
         else:
-            return self.forward_body(laplacian, x)
+            return self.forward_body(x)
 
 # Does bottleneck count as part of the depth?
 # If so, then depth = 3 + 1
@@ -97,12 +103,13 @@ class SphericalUNet(nn.Module):
         self.depth = ensure_depth(self.npix, depth)
         
         if laps is not None:
-            laps = torch.load(laps)
+            _laps = torch.load(laps)
         else:
-            laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
+            _laps = get_laplacians(self.npix, self.depth + 1, laplacian_type)
 
-        for i, lap in enumerate(laps):
-            self.register_buffer(f'laplacian_{i}', lap)
+        laps = []
+        for i, lap in enumerate(_laps):
+            laps.append(LaplacianModule(lap, i))
 
         if encoder_channels is not None:
             self.encoder_channels = encoder_channels
@@ -126,6 +133,7 @@ class SphericalUNet(nn.Module):
                                self.encoder_channels[i][0],
                                self.encoder_channels[i][1],
                                kernel_size=kernel_size,
+                               lap=laps[-(1+i)]
                                )
             for i in range(self.depth)
         ])
@@ -133,6 +141,7 @@ class SphericalUNet(nn.Module):
                                                    self.bottleneck_channels[0],
                                                    self.bottleneck_channels[1],
                                                    kernel_size=kernel_size,
+                                                    lap=laps[0]
                                                    )
 
         # bottleneck is 256
@@ -142,6 +151,7 @@ class SphericalUNet(nn.Module):
                                self.decoder_channels[i][0],
                                self.decoder_channels[i][1],
                                kernel_size=kernel_size,
+                                 lap=laps[i+1]
                                )
             for i in range(self.depth)
         ])
@@ -164,7 +174,6 @@ class SphericalUNet(nn.Module):
         for i, block in enumerate(self.decoder_block):
             block.gradient_checkpointing = value
     
-
     def enable_gradient_checkpointing(self):
         """Enable gradient checkpointing for the model."""
         self.set_gradient_checkpointing(True)
@@ -186,23 +195,21 @@ class SphericalUNet(nn.Module):
             torch.Tensor: Output tensor after applying the Spherical UNet.
         """
 
-        laps = [getattr(self, f'laplacian_{i}') for i in range(self.depth + 1)]
         # Encoder
         enc_features = []
         for i, block in enumerate(self.encoder_block):
-            x = block(laps[-(i+1)], x)
+            x = block(x)
             enc_features.append(x)
             x = self.pool(x)
             
-
         # Bottleneck
-        x = self.bottleneck_block(laps[0], x)
+        x = self.bottleneck_block(x)
         
         # Decoder
         for i, block in enumerate(self.decoder_block):
             x = self.upsample(x)
             x = torch.cat([x, enc_features.pop()], dim=2)
-            x = block(laps[(i+1)], x)
+            x = block(x)
 
         # Final convolution
         x = self.final_conv(x.permute(0, 2, 1))

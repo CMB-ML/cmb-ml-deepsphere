@@ -1,4 +1,7 @@
-## Code is taken and modified from the following repo: https://github.com/aurelio-amerio/ConcreteDropout.git
+# Code is a combination of a Keras implementation of *spatial* concrete dropout
+#         with a PyTorch implementation of concrete dropout
+# Keras: https://github.com/yaringal/ConcreteDropout/blob/master/spatial-concrete-dropout-keras.ipynb (class SpatialConcreteDropout)
+# PyTorch: https://github.com/aurelio-amerio/ConcreteDropout/blob/main/src/ConcreteDropout/pytorch.py (class ConcreteDropout)
 
 import torch
 import torch.nn as nn
@@ -86,6 +89,7 @@ class SpatialConcreteDropout(nn.Module):
         # We will now compute the KL terms following eq.3 of 1705.07832
 
         ss = 0
+        # Regularize only the weights and not the biases
         for name, param in layer.named_parameters():
             if name.endswith("weight"):
                 weight = param
@@ -107,19 +111,13 @@ class SpatialConcreteDropout(nn.Module):
         # regularizer
         return torch.sum(kernel_regularizer + dropout_regularizer)
 
-    def forward(self, lap, x, layer):
+    def forward(self, x, layer):
         self.p = torch.sigmoid(self.p_logit)
         self.regularization = self.get_regularization(x, layer)
         if self.is_mc_dropout:
-            if isinstance(layer, nn.Conv1d):
-                return layer(self._concrete_dropout(x))
-            return layer(lap, self._concrete_dropout(x))
+            return layer(self._concrete_dropout(x))
         else:
             if self.training:
-                if isinstance(layer, nn.Conv1d):
-                    return layer(self._concrete_dropout(x))
-                return layer(lap, self._concrete_dropout(x))
+                return layer(self._concrete_dropout(x))
             else:
-                if isinstance(layer, nn.Conv1d):
-                    return layer(x)
-                return layer(lap, x)
+                return layer(x)

@@ -129,7 +129,28 @@ def healpix_graph(nside=16,
         coords=coords)
     return G
 
-def scipy_csr_to_sparse_tensor(csr_mat):
+# def scipy_csr_to_sparse_tensor(csr_mat, require_grad=False):
+#     """Convert scipy csr to sparse pytorch tensor.
+
+#     Args:
+#         csr_mat (csr_matrix): The sparse scipy matrix.
+
+#     Returns:
+#         sparse_tensor :obj:`torch.sparse.FloatTensor`: The sparse torch matrix.
+#     """
+#     coo = coo_matrix(csr_mat)
+#     values = coo.data
+#     indices = np.vstack((coo.row, coo.col))
+#     idx = torch.LongTensor(indices)
+#     vals = torch.FloatTensor(values)
+#     shape = coo.shape
+#     sparse_tensor = torch.sparse_coo_tensor(idx, vals, torch.Size(shape), dtype=torch.float32)
+#     sparse_tensor = sparse_tensor.coalesce()
+#     return sparse_tensor
+
+# TODO: Improve this conversion to torch csr, converting to coo and then to csr is not necessary
+
+def scipy_csr_to_sparse_tensor(csr_mat, require_grad=False):
     """Convert scipy csr to sparse pytorch tensor.
 
     Args:
@@ -144,10 +165,10 @@ def scipy_csr_to_sparse_tensor(csr_mat):
     idx = torch.LongTensor(indices)
     vals = torch.FloatTensor(values)
     shape = coo.shape
-    sparse_tensor = torch.sparse_coo_tensor(idx, vals, torch.Size(shape), dtype=torch.float32)
+    sparse_tensor = torch.sparse_coo_tensor(idx, vals, torch.Size(shape), dtype=torch.float32, requires_grad=require_grad)
     sparse_tensor = sparse_tensor.coalesce()
+    sparse_tensor = sparse_tensor.to_sparse_csr()
     return sparse_tensor
-
 
 def prepare_laplacian(laplacian):
     """Prepare a graph Laplacian to be fed to a graph convolutional layer.
