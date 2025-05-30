@@ -52,41 +52,12 @@ def setup(rank, world_size):
     os.environ['MASTER_PORT'] = '12355'
 
     # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def cleanup():
     dist.destroy_process_group()
 
-
-def demo_run(rank, world_size, model_maker, dataset, lr, n_epochs, train_fn):
-    print(f"Running basic DDP example on rank {rank}.")
-    setup(rank, world_size)
-
-    # create model and move it to GPU with id rank
-    model = model_maker().to(rank)
-    ddp_model = DDP(model, device_ids=[rank])
-
-    loss_fn = nn.MSELoss()
-    optimizer = optim.SGD(ddp_model.parameters(), lr=lr)
-
-    dataloader = DataLoader(
-        dataset,
-        batch_size=5,
-        shuffle=False,
-        sampler=DistributedSampler(dataset),
-
-    )
-    
-    for epoch in range(n_epochs):
-        loss = train_fn(model, dataloader, optimizer, None, loss_fn)
-        print(f"Epoch {epoch}, Loss: {loss}")
-    
-    cleanup()
-    print(f"Finished running basic DDP example on rank {rank}.")
-
-
 logger = logging.getLogger(__name__)
-
 
 class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
     def __init__(self, cfg: DictConfig, rank) -> None:
@@ -151,14 +122,15 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         batch_loss = 0
         if train:
             model.train()
+            print(f"rank: {self.rank}, statedict: {model.state_dict()['decoder_block.2.bn_r2.0.bn.running_mean']}")
         else:
             model.eval()
         with tqdm(dataloader, postfix={'Loss': 0}) as pbar:
             for features, labels in pbar:
                 batch_n += 1
 
-                features = features.to(device=self.rank, dtype=self.dtype)
-                labels = labels.to(device=self.rank, dtype=self.dtype)
+                features = features.to(device=self.rank, dtype=self.dtype, non_blocking=True)
+                labels = labels.to(device=self.rank, dtype=self.dtype, non_blocking=True)
 
                 if train:
                     optimizer.zero_grad()
@@ -170,10 +142,8 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                         scaler.step(optimizer)
                         scaler.update()
                     else:
-                        print("forward pass")
                         output = model(features)
                         loss = loss_function(output, labels)
-                        print("backward pass")
                         loss.backward()
                         optimizer.step()
                 else:
@@ -248,21 +218,28 @@ def dist_run(rank, world_size, cfg):
     model_trainer = DeterministicTrainingExecutor(cfg, rank)
 
     dataset = model_trainer.set_up_dataset(model_trainer.splits[0])
-    dataloader = DataLoader(dataset, batch_size=5, shuffle=False, sampler=DistributedSampler(dataset))
-
-    model = model_trainer.make_model().to(rank)
+    sampler = DistributedSampler(dataset)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, sampler=sampler)
+    torch.cuda.set_device(rank)
+    model = model_trainer.make_model().cuda(rank)
+    sync_model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     print(f"Model created on rank {rank}.")
     print(f"On rank {rank}: bottleneck lap device {model.bottleneck_block.cheb1.laplacian.laplacian_0.device}")
-    ddp_model = DDP(model, device_ids=[rank], broadcast_buffers=False)
+    print(f"On rank {rank}: bottleneck lap grad {model.bottleneck_block.cheb1.laplacian.laplacian_0.requires_grad}")
+    ddp_model = DDP(sync_model, device_ids=[rank], output_device=rank, broadcast_buffers=False)
     print(f"On rank {rank}: DDP bottleneck lap device {ddp_model.module.bottleneck_block.cheb1.laplacian.laplacian_0.device}")
     print(f'ddp model created on rank {rank}')
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=model_trainer.lr)
     
     for epoch in range(model_trainer.n_epochs):
+        sampler.set_epoch(epoch)
         print(f"Epoch {epoch} on rank {rank}.")
         loss = model_trainer.train(model, dataloader, optimizer, None, loss_fn)
         print(f"Epoch {epoch}, Loss: {loss}")
+        if (epoch+1) % 10 == 0 and rank == 0:
+            with model_trainer.name_tracker.set_context("epoch", epoch+1):
+                model_trainer.out_model.write(model=model, optimizer=optimizer, epoch=epoch)
     
     cleanup()
     print(f"Finished running basic DDP example on rank {rank}.")

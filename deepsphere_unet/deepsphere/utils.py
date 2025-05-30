@@ -17,7 +17,11 @@ class LaplacianModule(nn.Module):
         super().__init__()
         self.laplacian_idx = laplacian_idx
         self.register_buffer(f"laplacian_{laplacian_idx}", laplacian)
-class HealpixBatchNorm(nn.BatchNorm1d):
+        
+class HealpixBatchNorm(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.bn = nn.BatchNorm1d(channels)
     def forward(self, x):
         """Forward pass of the batch normalization layer.
 
@@ -30,7 +34,7 @@ class HealpixBatchNorm(nn.BatchNorm1d):
         # Permute the input tensor to match the expected shape for BatchNorm1d
         x = x.permute(0, 2, 1)
         # Apply batch normalization
-        x = super().forward(x)
+        x = self.bn(x)
         # Permute back to original shape
         return x.permute(0, 2, 1)
 

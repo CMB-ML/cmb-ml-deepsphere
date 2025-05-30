@@ -2,3 +2,4 @@ from .stage_executors.B_train_deterministic_model import DeterministicTrainingEx
 from .stage_executors.C_predict_deterministic import PredictionExecutor
 from .stage_executors.D_train_bayesian_model import BayesianTrainingExecutor
 from .stage_executors.E_predict_bayesian import BayesianPredictionExecutor
+from .stage_executors.train_distributed import DistDeterministicTrainingExecutor
