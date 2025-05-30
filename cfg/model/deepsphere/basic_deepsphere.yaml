@@ -15,6 +15,8 @@ train:
   restart_epoch          : null       # Set to null to create a new model, or give a checkpoint number
   start_valid            : ${num_epochs_d_valid} # Number of epochs to run before beginning validation
   # restart_epoch    : 40
+  distributed            : true
+  n_gpus                 : 2
 train_bayesian:
   device                 : null  # Goes to None in python
   gradient_checkpointing : true # Set to true to use gradient checkpointing

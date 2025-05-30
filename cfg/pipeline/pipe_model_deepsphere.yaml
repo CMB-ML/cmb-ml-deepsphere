@@ -15,6 +15,7 @@ train:
     obs_maps: {stage: make_sims}
   splits:
     - train
+    - valid
     - test
   dir_name: DeepSphere_B_Train_Deterministic
   make_stage_log: True
@@ -36,6 +37,7 @@ load_bayesian:
     obs_maps: {stage: make_sims}
   splits:
     - train
+    - valid
     - test
   dir_name: DeepSphere_C_Train_Bayesian
   make_stage_log: True

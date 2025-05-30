@@ -8,25 +8,22 @@ The pipeline consists of the following steps:
 Usage:
     python main_deepsphere.py
 """
+
 import logging
 
 import hydra
 
-from cmbml.core import (
-                      PipelineContext,
-                      LogMaker
-                      )
+from cmbml.core import PipelineContext, LogMaker
 
 from cmbml.core.A_check_hydra_configs import HydraConfigCheckerExecutor
 
 from deepsphere_unet import (
-                            DeterministicTrainingExecutor,
-                            PredictionExecutor,
-                            BayesianTrainingExecutor,
-                            BayesianPredictionExecutor,
-                            DistDeterministicTrainingExecutor
-                            )
-
+    DeterministicTrainingExecutor,
+    PredictionExecutor,
+    BayesianTrainingExecutor,
+    BayesianPredictionExecutor,
+    DistDeterministicTrainingExecutor,
+)
 
 
 logger = logging.getLogger(__name__)

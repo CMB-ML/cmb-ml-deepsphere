@@ -3,7 +3,7 @@ import logging
 from tqdm import tqdm
 
 import torch
-from torch.amp import autocast, GradScaler
+from torch import autocast, GradScaler
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
 
@@ -12,11 +12,7 @@ import healpy as hp
 from .pytorch_model_base_executor import BaseDeepSphereModelExecutor
 from cmbml.core import Split, Asset
 
-from cmbml.core.asset_handlers import (
-    HealpyMap,
-    Config,
-    AppendingCsvHandler
-    )
+from cmbml.core.asset_handlers import HealpyMap, Config, AppendingCsvHandler
 
 from cmbml.torch.pytorch_model_handler import PyTorchModel  # Import for typing hint
 
@@ -47,24 +43,28 @@ from torch.utils.data.distributed import DistributedSampler
 #    world_size=world_size)
 # For TcpStore, same way as on Linux.
 
+
 def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
 
     # initialize the process group
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
+
 def cleanup():
     dist.destroy_process_group()
 
+
 logger = logging.getLogger(__name__)
 
-class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
+
+class ModelTrainer(BaseDeepSphereModelExecutor):
     def __init__(self, cfg: DictConfig, rank) -> None:
         super().__init__(cfg, stage_str="train")
 
         self.rank = rank
-        
+
         self.out_model: Asset = self.assets_out["model"]
         self.out_best_epoch: Asset = self.assets_out["best_epoch"]
         self.out_loss_record: Asset = self.assets_out["loss_record"]
@@ -80,10 +80,10 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         in_cmb_map_handler: HealpyMap
         in_obs_map_handler: HealpyMap
 
-        model_precision = 'float'
+        model_precision = "float"
         self.dtype = self.dtype_mapping[model_precision]
         self.choose_device(cfg.model.deepsphere.train.device)
-        if self.device == "mps": # MPS is not supported for sparse models
+        if self.device == "mps":  # MPS is not supported for sparse models
             logger.info(f"MPS is not supported for sparse models. Using CPU.")
             self.choose_device("cpu")
 
@@ -101,7 +101,15 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
     def execute(self) -> None:
         pass
 
-    def one_pass(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module, train: bool) -> float:
+    def one_pass(
+        self,
+        model: torch.nn.Module,
+        dataloader: DataLoader,
+        optimizer: torch.optim.Optimizer,
+        scaler: torch.GradScaler,
+        loss_function: torch.nn.Module,
+        train: bool,
+    ) -> float:
         """Runs the training or validation loop for a single epoch.
 
         Args:
@@ -122,15 +130,21 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         batch_loss = 0
         if train:
             model.train()
-            print(f"rank: {self.rank}, statedict: {model.state_dict()['decoder_block.2.bn_r2.0.bn.running_mean']}")
+            print(
+                f"rank: {self.rank}, statedict: {model.state_dict()['decoder_block.2.bn_r2.0.bn.running_mean']}"
+            )
         else:
             model.eval()
-        with tqdm(dataloader, postfix={'Loss': 0}) as pbar:
+        with tqdm(dataloader, postfix={"Loss": 0}) as pbar:
             for features, labels in pbar:
                 batch_n += 1
 
-                features = features.to(device=self.rank, dtype=self.dtype, non_blocking=True)
-                labels = labels.to(device=self.rank, dtype=self.dtype, non_blocking=True)
+                features = features.to(
+                    device=self.rank, dtype=self.dtype, non_blocking=True
+                )
+                labels = labels.to(
+                    device=self.rank, dtype=self.dtype, non_blocking=True
+                )
 
                 if train:
                     optimizer.zero_grad()
@@ -153,13 +167,25 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
 
                 batch_loss += loss.item()
 
-                pbar.set_postfix({f'Loss for {batch_n}/{len(dataloader)}': loss.item() / self.batch_size})
+                pbar.set_postfix(
+                    {
+                        f"Loss for {batch_n}/{len(dataloader)}": loss.item()
+                        / self.batch_size
+                    }
+                )
 
                 epoch_loss += batch_loss / self.batch_size
             epoch_loss /= n_batches
         return epoch_loss
-    
-    def train(self, model: torch.nn.Module, dataloader: DataLoader, optimizer: torch.optim.Optimizer, scaler: torch.amp.GradScaler, loss_function: torch.nn.Module) -> float:
+
+    def train(
+        self,
+        model: torch.nn.Module,
+        dataloader: DataLoader,
+        optimizer: torch.optim.Optimizer,
+        scaler: torch.amp.GradScaler,
+        loss_function: torch.nn.Module,
+    ) -> float:
         """Runs the training loop for a single epoch.
 
         Args:
@@ -173,9 +199,16 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             float: training loss for the epoch
         """
 
-        return self.one_pass(model, dataloader, optimizer, scaler, loss_function, train=True)
-    
-    def validate(self, model: torch.nn.Module, dataloader: DataLoader, loss_function: torch.nn.Module) -> float:
+        return self.one_pass(
+            model, dataloader, optimizer, scaler, loss_function, train=True
+        )
+
+    def validate(
+        self,
+        model: torch.nn.Module,
+        dataloader: DataLoader,
+        loss_function: torch.nn.Module,
+    ) -> float:
         """Runs the validation loop for a single epoch.
 
         Args:
@@ -186,74 +219,144 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         Returns:
             float: validation loss for the epoch
         """
-        return self.one_pass(model=model, dataloader=dataloader, optimizer=None, scaler=None, loss_function=loss_function, train=False)
+        return self.one_pass(
+            model=model,
+            dataloader=dataloader,
+            optimizer=None,
+            scaler=None,
+            loss_function=loss_function,
+            train=False,
+        )
+
+    # TODO: finish this implementation to return (train loader, valid loader)
+    def get_datasets(self):
+        train_split = None
+        valid_split = None
+        for split in self.splits:
+            if split.name == "Train":
+                train_split = split
+            elif split.name == "Valid":
+                valid_split = split
+
+        assert train_split is not None, (
+            "Train split not found, add train split in pipeline configuration file"
+        )
+
+        train_dataset = self.set_up_dataset(train_split)
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+        )
+
+        logger.info(f"Inspecting data for {train_split.name} split: ")
+        self.inspect_data(train_dataloader)
+
+        if valid_split is not None:
+            valid_dataset = self.set_up_dataset(valid_split)
+            valid_dataloader = DataLoader(
+                valid_dataset, batch_size=self.batch_size, shuffle=False
+            )
+            logger.info(f"Inspecting data for {valid_split.name} split: ")
+            self.inspect_data(valid_dataloader)
+            loss_record_headers = ["epoch", "train_loss", "valid_loss"]
+        else:
+            logger.info(f"No validation split found. Training without validation.")
+            logger.info(
+                f"This is not recommended. Consider adding a validation split in the pipeline configuration file."
+            )
+            valid_dataloader = None
+            loss_record_headers = ["epoch", "train_loss"]
 
     def set_up_dataset(self, template_split: Split) -> None:
         cmb_path_template = self.make_fn_template(template_split, self.in_cmb_asset)
         obs_path_template = self.make_fn_template(template_split, self.in_obs_assets)
 
         dataset = TrainCMBMapDataset(
-            n_sims = template_split.n_sims,
-            freqs = self.instrument.dets.keys(),
+            n_sims=template_split.n_sims,
+            freqs=self.instrument.dets.keys(),
             map_fields=self.map_fields,
-            label_path_template=cmb_path_template, 
+            label_path_template=cmb_path_template,
             label_handler=HealpyMap(),
             feature_path_template=obs_path_template,
-            feature_handler=HealpyMap()
-            )
+            feature_handler=HealpyMap(),
+        )
         return dataset
 
     def inspect_data(self, dataloader):
         train_features, train_labels = next(iter(dataloader))
-        logger.info(f"{self.__class__.__name__}.inspect_data() Feature batch shape: {train_features.size()}") # Should be (batch_size, npix, n_map_fields)
-        logger.info(f"{self.__class__.__name__}.inspect_data() Labels batch shape: {train_labels.size()}")
+        logger.info(
+            f"{self.__class__.__name__}.inspect_data() Feature batch shape: {train_features.size()}"
+        )  # Should be (batch_size, npix, n_map_fields)
+        logger.info(
+            f"{self.__class__.__name__}.inspect_data() Labels batch shape: {train_labels.size()}"
+        )
         npix_data = train_features.size()[1]
-        npix_cfg  = hp.nside2npix(self.nside)
-        assert npix_cfg == npix_data, "Npix for loaded map does not match configuration yamls."
+        npix_cfg = hp.nside2npix(self.nside)
+        assert npix_cfg == npix_data, (
+            "Npix for loaded map does not match configuration yamls."
+        )
 
+    def write_model(self, epoch, model, optim, scaler=None):
+        with self.name_tracker.set_context("epoch", epoch):
+            self.out_model.write(
+                model=model, optimizer=optim, scaler=scaler, epoch=epoch
+            )
+
+
+# TODO: implement logging, implement validation, clean up type checking, implement error handling
 def dist_run(rank, world_size, cfg):
-    print(f"Running basic DDP example on rank {rank}.")
+    print(f"Running DDP on rank {rank}.")
     setup(rank, world_size)
 
-    model_trainer = DeterministicTrainingExecutor(cfg, rank)
+    model_trainer = ModelTrainer(cfg, rank)
 
-    dataset = model_trainer.set_up_dataset(model_trainer.splits[0])
-    sampler = DistributedSampler(dataset)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, sampler=sampler)
+    train_dataset = model_trainer.set_up_dataset(model_trainer.splits[0])
+    train_sampler = DistributedSampler(train_dataset)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=1, shuffle=False, sampler=train_sampler
+    )
+
     torch.cuda.set_device(rank)
     model = model_trainer.make_model().cuda(rank)
     sync_model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
     print(f"Model created on rank {rank}.")
-    print(f"On rank {rank}: bottleneck lap device {model.bottleneck_block.cheb1.laplacian.laplacian_0.device}")
-    print(f"On rank {rank}: bottleneck lap grad {model.bottleneck_block.cheb1.laplacian.laplacian_0.requires_grad}")
-    ddp_model = DDP(sync_model, device_ids=[rank], output_device=rank, broadcast_buffers=False)
-    print(f"On rank {rank}: DDP bottleneck lap device {ddp_model.module.bottleneck_block.cheb1.laplacian.laplacian_0.device}")
-    print(f'ddp model created on rank {rank}')
+    ddp_model = DDP(
+        sync_model, device_ids=[rank], output_device=rank, broadcast_buffers=False
+    )
+    print(f"DDP model created on rank {rank}")
+
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=model_trainer.lr)
-    
-    for epoch in range(model_trainer.n_epochs):
-        sampler.set_epoch(epoch)
-        print(f"Epoch {epoch} on rank {rank}.")
-        loss = model_trainer.train(model, dataloader, optimizer, None, loss_fn)
-        print(f"Epoch {epoch}, Loss: {loss}")
-        if (epoch+1) % 10 == 0 and rank == 0:
-            with model_trainer.name_tracker.set_context("epoch", epoch+1):
-                model_trainer.out_model.write(model=model, optimizer=optimizer, epoch=epoch)
-    
-    cleanup()
-    print(f"Finished running basic DDP example on rank {rank}.")
 
-class DistDeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
+    for epoch in range(model_trainer.n_epochs):
+        train_sampler.set_epoch(epoch)
+        print(f"Epoch {epoch} on rank {rank}.")
+        loss = model_trainer.train(model, train_dataloader, optimizer, None, loss_fn)
+        print(f"Epoch {epoch}, Loss: {loss}")
+        if (epoch + 1) % 10 == 0 and rank == 0:
+            with model_trainer.name_tracker.set_context("epoch", epoch + 1):
+                model_trainer.out_model.write(
+                    model=model, optimizer=optimizer, epoch=epoch
+                )
+
+    cleanup()
+    print(f"Finished running DDP on rank {rank}.")
+
+
+class DistributedDeterministicExecutor(BaseDeepSphereModelExecutor):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__(cfg, stage_str="train")
 
         self.cfg = cfg
-        self.world_size = torch.cuda.device_count()
-
+        self.world_size = cfg.model.deepsphere.train.n_gpus
 
     def execute(self) -> None:
-        
-        
-        mp.spawn(dist_run, args=(self.world_size, self.cfg), nprocs=self.world_size, join=True)
-        
+        mp.spawn(
+            dist_run,
+            args=(self.world_size, self.cfg),
+            nprocs=self.world_size,
+            join=True,
+        )
+
