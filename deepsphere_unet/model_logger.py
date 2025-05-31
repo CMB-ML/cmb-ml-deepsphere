@@ -44,14 +44,12 @@ class ModelTracker:
         self.trackers = {tracker: ValueCounter() for tracker in self.to_track}
 
     def update_tracker(self, tracker, value, count=1):
-        _tracker = self.trackers[tracker]
-
-        _tracker.value = value
-        _tracker.count += count
-        _tracker.running_sum += value * count
-        _tracker.running_avg = _tracker.running_sum / _tracker.count
-
-        self.trackers[tracker] = _tracker
+        self.trackers[tracker].value = value
+        self.trackers[tracker].count += count
+        self.trackers[tracker].running_sum += value
+        self.trackers[tracker].running_avg = (
+            self.trackers[tracker].running_sum / self.trackers[tracker].count
+        )
 
     def all_reduce_tracker(self, tracker):
         if torch.cuda.is_available():
