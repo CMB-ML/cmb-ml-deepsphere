@@ -22,7 +22,7 @@ from deepsphere_unet import (
     PredictionExecutor,
     BayesianTrainingExecutor,
     BayesianPredictionExecutor,
-    DistDeterministicTrainingExecutor,
+    DistributedDeterministicExecutor,
 )
 
 
@@ -40,7 +40,7 @@ def run_deepsphere(cfg):
 
     pipeline_context.add_pipe(HydraConfigCheckerExecutor)
 
-    pipeline_context.add_pipe(DistDeterministicTrainingExecutor)
+    pipeline_context.add_pipe(DistributedDeterministicExecutor)
     # pipeline_context.add_pipe(PredictionExecutor)
 
     # pipeline_context.add_pipe(BayesianTrainingExecutor)
