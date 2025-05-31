@@ -389,9 +389,24 @@ class DistributedDeterministicExecutor(BaseDeepSphereModelExecutor):
         self.world_size = cfg.model.deepsphere.train.n_gpus
 
     def execute(self) -> None:
-        mp.spawn(
-            dist_run,
-            args=(self.world_size, self.cfg),
-            nprocs=self.world_size,
-            join=True,
-        )
+        # mp.spawn(
+        #     dist_run,
+        #     args=(self.world_size, self.cfg),
+        #     nprocs=self.world_size,
+        #     join=True,
+        # )
+        try:
+            mp.spawn(
+                dist_run,
+                args=(self.world_size, self.cfg),
+                nprocs=self.world_size,
+                join=True,
+            )
+        except KeyboardInterrupt:
+            print("Interrupted")
+            try:
+                dist.destroy_process_group()
+            except KeyboardInterrupt:
+                os.system(
+                    "kill $(ps aux | grep multiprocessing.spawn | grep -v grep | awk '{print $2}') "
+                )
