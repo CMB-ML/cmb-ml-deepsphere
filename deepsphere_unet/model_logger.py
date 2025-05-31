@@ -61,16 +61,18 @@ class ModelTracker:
         else:
             device = torch.device("cpu")
 
-        cur_tracker = self.trackers[tracker]
         total = torch.tensor(
-            [cur_tracker.running_sum, cur_tracker.count],
+            [self.trackers[tracker].running_sum, self.trackers[tracker].count],
             dtype=torch.float32,
             device=device,
         )
         dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
-        cur_tracker.running_sum, cur_tracker.count = total.tolist()
-        cur_tracker.running_avg = cur_tracker.running_sum / cur_tracker.count
-        self.trackers[tracker] = cur_tracker
+        self.trackers[tracker].running_sum, self.trackers[tracker].count = (
+            total.tolist()
+        )
+        self.trackers[tracker].running_avg = (
+            self.trackers[tracker].running_sum / self.trackers[tracker].count
+        )
 
 
 @contextmanager

@@ -3,7 +3,6 @@ from typing import Tuple, Union
 
 from tqdm import tqdm
 
-import time
 import os
 import torch
 import torch.distributed as dist
@@ -37,7 +36,11 @@ def setup(rank, world_size):
     os.environ["MASTER_PORT"] = "12355"
 
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group(
+        "nccl",
+        rank=rank,
+        world_size=world_size,
+    )
 
 
 def cleanup():
@@ -87,6 +90,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
 
         self.modelTracker = ModelTracker()
         self.record_header = self.modelTracker.to_track
+        self.out_loss_record.write(data=self.record_header)
 
     def execute(self) -> None:
         pass
@@ -327,18 +331,18 @@ def get_mem_stats(device=None):
 
 
 # TODO: clean up type checking, implement error handling
-def dist_run(rank, world_size, cfg):
+def dist_run(rank, world_size, cfg, logger):
     print(f"Running DDP on rank {rank}.")
+    torch.cuda.set_device(rank)
+    device = f"cuda:{rank}"
+
     setup(rank, world_size)
 
     trainer = ModelTrainer(cfg, rank)
-
-    device = f"cuda:{rank}"
     trainer.device = device
 
     (train_dataloader, train_sampler), (valid_dataloader, _) = trainer.get_datasets()
 
-    torch.cuda.set_device(rank)
     model = trainer.make_model().cuda(rank)
     sync_model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
@@ -353,13 +357,14 @@ def dist_run(rank, world_size, cfg):
 
     for epoch in range(trainer.n_epochs):
         train_sampler.set_epoch(epoch)
+        print(f"starting epoch {epoch + 1} on rank {rank}")
         with timer(trainer.modelTracker, "epoch_process_time"):
             trainer.train(ddp_model, train_dataloader, optimizer, None, loss_fn)
             trainer.validate(ddp_model, valid_dataloader, loss_fn)
 
+        for tracker in trainer.modelTracker.to_track:
+            trainer.modelTracker.all_reduce_tracker(tracker)
         if rank == 0:
-            for tracker in trainer.modelTracker.to_track:
-                trainer.modelTracker.all_reduce_tracker(tracker)
             vals_to_log = [
                 tracker.running_avg
                 for tracker in trainer.modelTracker.trackers.values()
@@ -373,6 +378,12 @@ def dist_run(rank, world_size, cfg):
                 Train loss: {vals_to_log[3]}\n
                 Valid loss: {vals_to_log[4]}"""
             )
+            print(f"""Epoch: {epoch}\n
+                Batch process time: {vals_to_log[0]}\n
+                Data load time: {vals_to_log[1]}\n
+                Epoch process time: {vals_to_log[2]}\n
+                Train loss: {vals_to_log[3]}\n
+                Valid loss: {vals_to_log[4]}""")
         if (
             (epoch + 1) in trainer.extra_check or (epoch + 1) % trainer.checkpoint == 0
         ) and rank == 0:
@@ -398,7 +409,7 @@ class DistributedDeterministicExecutor(BaseDeepSphereModelExecutor):
         try:
             mp.spawn(
                 dist_run,
-                args=(self.world_size, self.cfg),
+                args=(self.world_size, self.cfg, logger),
                 nprocs=self.world_size,
                 join=True,
             )
