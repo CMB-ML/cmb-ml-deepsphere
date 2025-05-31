@@ -317,6 +317,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
             )
 
 
+# TODO: utilize this memory stat function somewhere
 def get_mem_stats(device=None):
     mem = torch.cuda.memory_stats(device)
     props = torch.cuda.get_device_properties(device)
@@ -352,12 +353,32 @@ def dist_run(rank, world_size, cfg, logger):
     )
     print(f"DDP model created on rank {rank}")
 
+    with trainer.name_tracker.set_context("epoch", 1):
+        print(trainer.name_tracker.path)
+
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=trainer.lr)
 
-    for epoch in range(trainer.n_epochs):
+    if trainer.restart_epoch is not None:
+        logger.info(f"Restarting training at {trainer.restart_epoch}")
+        print(f"Restarting training at {trainer.restart_epoch}")
+        with trainer.name_tracker.set_context("epoch", 1):
+            chkpt = torch.load(
+                trainer.in_model.path, map_location=device, weights_only=True
+            )
+        ddp_model.load_state_dict(chkpt["model_state_dict"])
+        optimizer.load_state_dict(chkpt["optimizer_state_dict"])
+        start_epoch = chkpt["epoch"]
+        if start_epoch == "init":
+            start_epoch = 0
+    else:
+        logger.info("Starting new model")
+        if rank == 0:
+            trainer.write_model("init", ddp_model, optimizer)
+        start_epoch = 0
+
+    for epoch in range(start_epoch, trainer.n_epochs):
         train_sampler.set_epoch(epoch)
-        print(f"starting epoch {epoch + 1} on rank {rank}")
         with timer(trainer.modelTracker, "epoch_process_time"):
             trainer.train(ddp_model, train_dataloader, optimizer, None, loss_fn)
             trainer.validate(ddp_model, valid_dataloader, loss_fn)
@@ -370,14 +391,6 @@ def dist_run(rank, world_size, cfg, logger):
                 for tracker in trainer.modelTracker.trackers.values()
             ]
             trainer.out_loss_record.append(vals_to_log)
-            logger.info(
-                f"""Epoch: {epoch}\n
-                Batch process time: {vals_to_log[0]}\n
-                Data load time: {vals_to_log[1]}\n
-                Epoch process time: {vals_to_log[2]}\n
-                Train loss: {vals_to_log[3]}\n
-                Valid loss: {vals_to_log[4]}"""
-            )
             print(f"""Epoch: {epoch}\n
                 Batch process time: {vals_to_log[0]}\n
                 Data load time: {vals_to_log[1]}\n
