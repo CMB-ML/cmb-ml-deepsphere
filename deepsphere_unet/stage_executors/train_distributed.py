@@ -1,10 +1,17 @@
 import logging
+from typing import Tuple, Union
 
 from tqdm import tqdm
 
+import time
+import os
 import torch
+import torch.distributed as dist
+import torch.nn as nn
+import torch.optim as optim
+import torch.multiprocessing as mp
 from torch import autocast, GradScaler
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, RandomSampler, Sampler
 from omegaconf import DictConfig
 
 import healpy as hp
@@ -19,29 +26,10 @@ from cmbml.torch.pytorch_model_handler import PyTorchModel  # Import for typing 
 from deepsphere_unet.dataset import TrainCMBMapDataset
 
 
-import os
-import sys
-import tempfile
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.optim as optim
-import torch.multiprocessing as mp
-
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
-# On Windows platform, the torch.distributed package only
-# supports Gloo backend, FileStore and TcpStore.
-# For FileStore, set init_method parameter in init_process_group
-# to a local file. Example as follow:
-# init_method="file:///f:/libtmp/some_file"
-# dist.init_process_group(
-#    "gloo",
-#    rank=rank,
-#    init_method=init_method,
-#    world_size=world_size)
-# For TcpStore, same way as on Linux.
+from deepsphere_unet.model_logger import ModelTracker, timer
 
 
 def setup(rank, world_size):
@@ -75,7 +63,6 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         self.in_model: Asset = self.assets_in["model"]
         self.in_cmb_asset: Asset = self.assets_in["cmb_map"]
         self.in_obs_assets: Asset = self.assets_in["obs_maps"]
-        # self.in_norm: Asset = self.assets_in["dataset_stats"]  # TODO: Does removing this line break anything?
         in_model_handler: PyTorchModel
         in_cmb_map_handler: HealpyMap
         in_obs_map_handler: HealpyMap
@@ -97,6 +84,9 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
 
         self.restart_epoch = cfg.model.deepsphere.train.restart_epoch
         self.start_valid = cfg.model.deepsphere.train.start_valid
+
+        self.modelTracker = ModelTracker()
+        self.record_header = self.modelTracker.to_track
 
     def execute(self) -> None:
         pass
@@ -130,22 +120,21 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         batch_loss = 0
         if train:
             model.train()
-            print(
-                f"rank: {self.rank}, statedict: {model.state_dict()['decoder_block.2.bn_r2.0.bn.running_mean']}"
-            )
         else:
             model.eval()
-        with tqdm(dataloader, postfix={"Loss": 0}) as pbar:
-            for features, labels in pbar:
-                batch_n += 1
 
+        for features, labels in dataloader:
+            batch_n += 1
+
+            with timer(self.modelTracker, "data_load_time"):
                 features = features.to(
-                    device=self.rank, dtype=self.dtype, non_blocking=True
+                    device=self.device, dtype=self.dtype, non_blocking=True
                 )
                 labels = labels.to(
-                    device=self.rank, dtype=self.dtype, non_blocking=True
+                    device=self.device, dtype=self.dtype, non_blocking=True
                 )
 
+            with timer(self.modelTracker, "batch_process_time"):
                 if train:
                     optimizer.zero_grad()
                     if self.mixed_precision:
@@ -160,22 +149,21 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
                         loss = loss_function(output, labels)
                         loss.backward()
                         optimizer.step()
+                    self.modelTracker.update_tracker(
+                        "train_loss", loss.item(), features.size(0)
+                    )
                 else:
                     with torch.no_grad():
                         output = model(features)
                         loss = loss_function(output, labels)
+                        self.modelTracker.update_tracker(
+                            "val_loss", loss.item(), features.size(0)
+                        )
 
-                batch_loss += loss.item()
+            batch_loss += loss.item()
 
-                pbar.set_postfix(
-                    {
-                        f"Loss for {batch_n}/{len(dataloader)}": loss.item()
-                        / self.batch_size
-                    }
-                )
-
-                epoch_loss += batch_loss / self.batch_size
-            epoch_loss /= n_batches
+            epoch_loss += batch_loss / self.batch_size
+        epoch_loss /= n_batches
         return epoch_loss
 
     def train(
@@ -183,7 +171,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         model: torch.nn.Module,
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
-        scaler: torch.amp.GradScaler,
+        scaler: torch.GradScaler,
         loss_function: torch.nn.Module,
     ) -> float:
         """Runs the training loop for a single epoch.
@@ -228,8 +216,9 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
             train=False,
         )
 
-    # TODO: finish this implementation to return (train loader, valid loader)
-    def get_datasets(self):
+    def get_datasets(
+        self, distributed=True
+    ) -> Tuple[Tuple[DataLoader, Sampler], Tuple[DataLoader, Sampler]]:
         train_split = None
         valid_split = None
         for split in self.splits:
@@ -243,10 +232,18 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         )
 
         train_dataset = self.set_up_dataset(train_split)
+
+        if distributed:
+            train_sampler = DistributedSampler(train_dataset)
+        else:
+            train_sampler = RandomSampler(train_dataset)
+
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False,
+            sampler=train_sampler,
+            pin_memory=True,
         )
 
         logger.info(f"Inspecting data for {train_split.name} split: ")
@@ -254,21 +251,33 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
 
         if valid_split is not None:
             valid_dataset = self.set_up_dataset(valid_split)
+
+            if distributed:
+                valid_sampler = DistributedSampler(valid_dataset, shuffle=False)
+            else:
+                valid_sampler = RandomSampler(valid_dataset)
+
             valid_dataloader = DataLoader(
-                valid_dataset, batch_size=self.batch_size, shuffle=False
+                valid_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                sampler=valid_sampler,
+                pin_memory=True,
             )
+
             logger.info(f"Inspecting data for {valid_split.name} split: ")
             self.inspect_data(valid_dataloader)
-            loss_record_headers = ["epoch", "train_loss", "valid_loss"]
         else:
             logger.info(f"No validation split found. Training without validation.")
             logger.info(
                 f"This is not recommended. Consider adding a validation split in the pipeline configuration file."
             )
+            valid_sampler = None
             valid_dataloader = None
-            loss_record_headers = ["epoch", "train_loss"]
 
-    def set_up_dataset(self, template_split: Split) -> None:
+        return ((train_dataloader, train_sampler), (valid_dataloader, valid_sampler))
+
+    def set_up_dataset(self, template_split: Split) -> Dataset:
         cmb_path_template = self.make_fn_template(template_split, self.in_cmb_asset)
         obs_path_template = self.make_fn_template(template_split, self.in_obs_assets)
 
@@ -304,21 +313,33 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
             )
 
 
-# TODO: implement logging, implement validation, clean up type checking, implement error handling
+def get_mem_stats(device=None):
+    mem = torch.cuda.memory_stats(device)
+    props = torch.cuda.get_device_properties(device)
+    return {
+        "gpu_name": props.name,
+        "total_gb": 1e-9 * props.total_memory,
+        "curr_alloc_gb": 1e-9 * mem["allocated_bytes.all.current"],
+        "peak_alloc_gb": 1e-9 * mem["allocated_bytes.all.peak"],
+        "curr_resv_gb": 1e-9 * mem["reserved_bytes.all.current"],
+        "peak_resv_gb": 1e-9 * mem["reserved_bytes.all.peak"],
+    }
+
+
+# TODO: clean up type checking, implement error handling
 def dist_run(rank, world_size, cfg):
     print(f"Running DDP on rank {rank}.")
     setup(rank, world_size)
 
-    model_trainer = ModelTrainer(cfg, rank)
+    trainer = ModelTrainer(cfg, rank)
 
-    train_dataset = model_trainer.set_up_dataset(model_trainer.splits[0])
-    train_sampler = DistributedSampler(train_dataset)
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=1, shuffle=False, sampler=train_sampler
-    )
+    device = f"cuda:{rank}"
+    trainer.device = device
+
+    train_dataloader, train_sampler, valid_dataloader, _ = trainer.get_datasets()
 
     torch.cuda.set_device(rank)
-    model = model_trainer.make_model().cuda(rank)
+    model = trainer.make_model().cuda(rank)
     sync_model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     print(f"Model created on rank {rank}.")
@@ -328,19 +349,34 @@ def dist_run(rank, world_size, cfg):
     print(f"DDP model created on rank {rank}")
 
     loss_fn = nn.MSELoss()
-    optimizer = optim.SGD(ddp_model.parameters(), lr=model_trainer.lr)
+    optimizer = optim.SGD(ddp_model.parameters(), lr=trainer.lr)
 
-    for epoch in range(model_trainer.n_epochs):
+    for epoch in range(trainer.n_epochs):
         train_sampler.set_epoch(epoch)
-        print(f"Epoch {epoch} on rank {rank}.")
-        loss = model_trainer.train(model, train_dataloader, optimizer, None, loss_fn)
-        print(f"Epoch {epoch}, Loss: {loss}")
-        if (epoch + 1) % 10 == 0 and rank == 0:
-            with model_trainer.name_tracker.set_context("epoch", epoch + 1):
-                model_trainer.out_model.write(
-                    model=model, optimizer=optimizer, epoch=epoch
-                )
+        with timer(trainer.modelTracker, "epoch_process_time"):
+            trainer.train(ddp_model, train_dataloader, optimizer, None, loss_fn)
+            trainer.validate(ddp_model, valid_dataloader, loss_fn)
 
+        if rank == 0:
+            for tracker in trainer.modelTracker.to_track:
+                trainer.modelTracker.all_reduce_tracker(tracker)
+            vals_to_log = [
+                tracker.running_avg
+                for tracker in trainer.modelTracker.trackers.values()
+            ]
+            trainer.out_loss_record.append(vals_to_log)
+            logger.info(
+                f"""Epoch: {epoch}\n
+                Batch process time: {vals_to_log[0]}\n
+                Data load time: {vals_to_log[1]}\n
+                Epoch process time: {vals_to_log[2]}\n
+                Train loss: {vals_to_log[3]}\n
+                Valid loss: {vals_to_log[4]}"""
+            )
+        if (
+            (epoch + 1) in trainer.extra_check or (epoch + 1) % trainer.checkpoint == 0
+        ) and rank == 0:
+            trainer.write_model(epoch + 1, ddp_model, optimizer)
     cleanup()
     print(f"Finished running DDP on rank {rank}.")
 
@@ -359,4 +395,3 @@ class DistributedDeterministicExecutor(BaseDeepSphereModelExecutor):
             nprocs=self.world_size,
             join=True,
         )
-
