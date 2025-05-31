@@ -336,7 +336,7 @@ def dist_run(rank, world_size, cfg):
     device = f"cuda:{rank}"
     trainer.device = device
 
-    train_dataloader, train_sampler, valid_dataloader, _ = trainer.get_datasets()
+    (train_dataloader, train_sampler), (valid_dataloader, _) = trainer.get_datasets()
 
     torch.cuda.set_device(rank)
     model = trainer.make_model().cuda(rank)
