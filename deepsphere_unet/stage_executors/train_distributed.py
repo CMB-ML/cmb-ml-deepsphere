@@ -28,7 +28,12 @@ from deepsphere_unet.dataset import TrainCMBMapDataset
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
-from deepsphere_unet.model_logger import ModelTracker, timer
+from deepsphere_unet.model_logger import (
+    ModelTracker,
+    timer,
+    AverageMeter,
+    ProgressMeter,
+)
 
 
 def setup(rank, world_size):
@@ -119,6 +124,9 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         """
         n_batches = len(dataloader)
 
+        losscounter = AverageMeter("Loss", ":.4e")
+        progress = ProgressMeter(len(dataloader), [losscounter], prefix="Epoch: [{}]")
+
         epoch_loss = 0.0
         batch_n = 0
         batch_loss = 0
@@ -127,7 +135,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         else:
             model.eval()
 
-        for features, labels in dataloader:
+        for i, (features, labels) in enumerate(dataloader):
             batch_n += 1
 
             with timer(self.modelTracker, "data_load_time"):
@@ -156,6 +164,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
                     self.modelTracker.update_tracker(
                         "train_loss", loss.item(), features.size(0)
                     )
+                    losscounter.update(loss.item(), features.size(0))
                 else:
                     with torch.no_grad():
                         output = model(features)
@@ -164,9 +173,14 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
                             "val_loss", loss.item(), features.size(0)
                         )
 
+            progress.display(i + 1)
+
             batch_loss += loss.item()
 
             epoch_loss += batch_loss / self.batch_size
+
+        losscounter.all_reduce()
+        progress.display_summary()
         epoch_loss /= n_batches
         return epoch_loss
 
