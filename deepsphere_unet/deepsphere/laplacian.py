@@ -1,12 +1,13 @@
 # From deepsphere implementation at https://github.com/deepsphere/deepsphere-pytorch
-# 
+#
 
 from scipy import sparse
-from scipy.sparse import coo_matrix
+from scipy.sparse import csr_matrix
 import numpy as np
 import healpy as hp
 import torch
-import math 
+import math
+
 
 def healpix_weightmatrix(nside=16, nest=True, indexes=None, dtype=np.float32):
     """Return an unnormalized weight matrix for a graph using the HEALPIX sampling.
@@ -49,9 +50,9 @@ def healpix_weightmatrix(nside=16, nest=True, indexes=None, dtype=np.float32):
 
     # Remove pixels that are out of our indexes of interest (part of sphere).
     if usefast:
-        keep = (col_index < npix)
+        keep = col_index < npix
         # Remove fake neighbors (some pixels have less than 8).
-        keep &= (col_index >= 0)
+        keep &= col_index >= 0
         col_index = col_index[keep]
         row_index = row_index[keep]
     else:
@@ -64,7 +65,7 @@ def healpix_weightmatrix(nside=16, nest=True, indexes=None, dtype=np.float32):
         row_index = [inverse_map[el] for el in row_index[keep]]
 
     # Compute Euclidean distances between neighbors.
-    distances = np.sum((coords[row_index] - coords[col_index])**2, axis=1)
+    distances = np.sum((coords[row_index] - coords[col_index]) ** 2, axis=1)
     # slower: np.linalg.norm(coords[row_index] - coords[col_index], axis=1)**2
 
     # Compute similarities / edge weights.
@@ -76,7 +77,8 @@ def healpix_weightmatrix(nside=16, nest=True, indexes=None, dtype=np.float32):
 
     # Build the sparse matrix.
     W = sparse.csr_matrix(
-        (weights, (row_index, col_index)), shape=(npix, npix), dtype=dtype)
+        (weights, (row_index, col_index)), shape=(npix, npix), dtype=dtype
+    )
 
     # if use_4:
     #     W = (W+W.T)/2
@@ -84,53 +86,42 @@ def healpix_weightmatrix(nside=16, nest=True, indexes=None, dtype=np.float32):
     return W
 
 
-def build_laplacian(W, lap_type='normalized', dtype=np.float32):
-    """Build a Laplacian (tensorflow)."""
+def build_laplacian(W, lap_type="normalized", dtype=np.float32):
+    """Build a Laplacian and return in CSR format."""
     d = np.ravel(W.sum(1))
-    if lap_type == 'combinatorial':
+    if lap_type == "combinatorial":
         D = sparse.diags(d, 0, dtype=dtype)
         return (D - W).tocsc()
-    elif lap_type == 'normalized':
+    elif lap_type == "normalized":
         d12 = np.power(d, -0.5)
         D12 = sparse.diags(np.ravel(d12), 0, dtype=dtype).tocsc()
         return sparse.identity(d.shape[0], dtype=dtype) - D12 * W * D12
     else:
-        raise ValueError('Unknown Laplacian type {}'.format(lap_type))
+        raise ValueError("Unknown Laplacian type {}".format(lap_type))
 
 
-def healpix_graph(nside=16,
-                  nest=True,
-                  lap_type='normalized',
-                  indexes=None,
-                  use_4=False,
-                  dtype=np.float32):
-    """Build a healpix graph using the pygsp from NSIDE."""
-    from pygsp import graphs
-
+def compute_laplacian(
+    nside=16,
+    nest=True,
+    lap_type="normalized",
+    indexes=None,
+    use_4=False,
+    dtype=np.float32,
+):
     if indexes is None:
         indexes = range(nside**2 * 12)
 
-    # 1) get the coordinates
-    npix = hp.nside2npix(nside)  # number of pixels: 12 * nside**2
-    pix = range(npix)
-    x, y, z = hp.pix2vec(nside, pix, nest=nest)
-    coords = np.vstack([x, y, z]).transpose()[indexes]
-    # 2) computing the weight matrix
     if use_4:
         raise NotImplementedError()
-        W = build_matrix_4_neighboors(nside, indexes, nest=nest, dtype=dtype)
     else:
-        W = healpix_weightmatrix(
-            nside=nside, nest=nest, indexes=indexes, dtype=dtype)
-    # 3) building the graph
-    G = graphs.Graph(
-        W,
-        lap_type=lap_type,
-        coords=coords)
-    return G
+        W = healpix_weightmatrix(nside=nside, nest=nest, indexes=indexes, dtype=dtype)
+    L = build_laplacian(W, lap_type=lap_type, dtype=dtype)
 
-# def scipy_csr_to_sparse_tensor(csr_mat, require_grad=False):
-#     """Convert scipy csr to sparse pytorch tensor.
+    return L
+
+
+# def scipy_csr_to_coo_tensor(csr_mat, require_grad=False):
+#     """Convert scipy csr to sparse COO pytorch tensor.
 
 #     Args:
 #         csr_mat (csr_matrix): The sparse scipy matrix.
@@ -148,10 +139,9 @@ def healpix_graph(nside=16,
 #     sparse_tensor = sparse_tensor.coalesce()
 #     return sparse_tensor
 
-# TODO: Improve this conversion to torch csr, converting to coo and then to csr is not necessary
 
 def scipy_csr_to_sparse_tensor(csr_mat, require_grad=False):
-    """Convert scipy csr to sparse pytorch tensor.
+    """Convert scipy csr to sparse CSR pytorch tensor.
 
     Args:
         csr_mat (csr_matrix): The sparse scipy matrix.
@@ -159,32 +149,42 @@ def scipy_csr_to_sparse_tensor(csr_mat, require_grad=False):
     Returns:
         sparse_tensor :obj:`torch.sparse.FloatTensor`: The sparse torch matrix.
     """
-    coo = coo_matrix(csr_mat)
-    values = coo.data
-    indices = np.vstack((coo.row, coo.col))
-    idx = torch.LongTensor(indices)
-    vals = torch.FloatTensor(values)
-    shape = coo.shape
-    sparse_tensor = torch.sparse_coo_tensor(idx, vals, torch.Size(shape), dtype=torch.float32, requires_grad=require_grad)
-    sparse_tensor = sparse_tensor.coalesce()
-    sparse_tensor = sparse_tensor.to_sparse_csr()
+    if not isinstance(csr_mat, csr_matrix):
+        csr_mat = csr_mat.tocsr()
+
+    crow_idx = torch.tensor(csr_mat.indptr)
+    col_idx = torch.tensor(csr_mat.indices)
+    values = torch.tensor(csr_mat.data)
+    size = csr_mat.shape
+    sparse_tensor = torch.sparse_csr_tensor(
+        crow_idx,
+        col_idx,
+        values,
+        size=size,
+        dtype=torch.float32,
+        requires_grad=require_grad,
+    )
     return sparse_tensor
 
-def prepare_laplacian(laplacian):
-    """Prepare a graph Laplacian to be fed to a graph convolutional layer.
-    """
 
-    def estimate_lmax(laplacian, tol=5e-3):
-        """Estimate the largest eigenvalue of an operator.
-        """
-        lmax = sparse.linalg.eigsh(laplacian, k=1, tol=tol, ncv=min(laplacian.shape[0], 10), return_eigenvectors=False)
+def prepare_laplacian(laplacian):
+    """Prepare a graph Laplacian to be fed to a graph convolutional layer."""
+
+    def estimate_lmax(laplacian, tol=5e-4):
+        """Estimate the largest eigenvalue of an operator."""
+        lmax = sparse.linalg.eigsh(
+            laplacian,
+            k=1,
+            tol=tol,
+            ncv=min(laplacian.shape[0], 10),
+            return_eigenvectors=False,
+        )
         lmax = lmax[0]
         lmax *= 1 + 2 * tol  # Be robust to errors.
         return lmax
 
     def scale_operator(L, lmax, scale=1):
-        """Scale the eigenvalues from [0, lmax] to [-scale, scale].
-        """
+        """Scale the eigenvalues from [0, lmax] to [-scale, scale]."""
         I = sparse.identity(L.shape[0], format=L.format, dtype=L.dtype)
         L *= 2 * scale / lmax
         L -= I
@@ -195,9 +195,11 @@ def prepare_laplacian(laplacian):
     laplacian = scipy_csr_to_sparse_tensor(laplacian)
     return laplacian
 
+
 def resolution_calculator(nodes):
     resolution = int(math.sqrt(nodes / 12))
     return resolution
+
 
 def get_laplacians(nodes, depth, laplacian_type):
     """Get the healpix laplacian list for a certain depth.
@@ -211,9 +213,10 @@ def get_laplacians(nodes, depth, laplacian_type):
     laps = []
     for i in range(depth):
         pixel_num = nodes
-        subdivisions = int(resolution_calculator(pixel_num)/2**i)
-        G = healpix_graph(subdivisions, lap_type=laplacian_type)
-        G.compute_laplacian(laplacian_type)
-        laplacian = prepare_laplacian(G.L)
+        subdivisions = int(resolution_calculator(pixel_num) / 2**i)
+        L = compute_laplacian(nside=subdivisions, lap_type=laplacian_type)
+        laplacian = prepare_laplacian(L)
+        # laplacian = L
         laps.append(laplacian)
+
     return laps[::-1]
