@@ -80,10 +80,13 @@ class ModelTracker:
                     continue
             self.allreduce_tracker(tracker)
 
-        self.combined_loss = (
-            0.8 * self.trackers["val_loss"].running_avg
-            + 0.2 * self.trackers["train_loss"].running_avg
-        )
+        if not include_val:
+            self.combined_loss = self.trackers["train_loss"].running_avg
+        else:
+            self.combined_loss = (
+                0.8 * self.trackers["val_loss"].running_avg
+                + 0.2 * self.trackers["train_loss"].running_avg
+            )
 
     def get_combined_loss(self):
         return self.combined_loss
