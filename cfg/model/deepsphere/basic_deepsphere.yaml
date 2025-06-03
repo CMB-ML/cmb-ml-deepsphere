@@ -17,6 +17,7 @@ train:
   # restart_epoch    : 40
   distributed            : true
   n_gpus                 : 2
+  show_mem_stats         : true
 train_bayesian:
   device                 : null  # Goes to None in python
   gradient_checkpointing : true # Set to true to use gradient checkpointing

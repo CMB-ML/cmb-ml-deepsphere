@@ -30,9 +30,8 @@ from torch.utils.data.distributed import DistributedSampler
 
 from deepsphere_unet.model_logger import (
     ModelTracker,
+    get_mem_stats,
     timer,
-    AverageMeter,
-    ProgressMeter,
 )
 
 
@@ -97,6 +96,8 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         self.record_header = self.modelTracker.to_track
         self.out_loss_record.write(data=self.record_header)
 
+        self.show_mem_stats = cfg.model.deepsphere.train.show_mem_stats
+
     def execute(self) -> None:
         pass
 
@@ -124,18 +125,25 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         """
         n_batches = len(dataloader)
 
-        losscounter = AverageMeter("Loss", ":.4e")
-        progress = ProgressMeter(len(dataloader), [losscounter], prefix="Epoch: [{}]")
+        for tracker in self.modelTracker.to_track:
+            if train:
+                if tracker == "val_loss":
+                    continue
+            else:
+                if tracker == "train_loss":
+                    continue
+            self.modelTracker.reset_tracker(tracker)
 
         epoch_loss = 0.0
         batch_n = 0
         batch_loss = 0
+
         if train:
             model.train()
         else:
             model.eval()
 
-        for i, (features, labels) in enumerate(dataloader):
+        for features, labels in dataloader:
             batch_n += 1
 
             with timer(self.modelTracker, "data_load_time"):
@@ -164,7 +172,6 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
                     self.modelTracker.update_tracker(
                         "train_loss", loss.item(), features.size(0)
                     )
-                    losscounter.update(loss.item(), features.size(0))
                 else:
                     with torch.no_grad():
                         output = model(features)
@@ -173,14 +180,10 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
                             "val_loss", loss.item(), features.size(0)
                         )
 
-            progress.display(i + 1)
-
             batch_loss += loss.item()
 
             epoch_loss += batch_loss / self.batch_size
 
-        losscounter.all_reduce()
-        progress.display_summary()
         epoch_loss /= n_batches
         return epoch_loss
 
@@ -331,20 +334,6 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
             )
 
 
-# TODO: utilize this memory stat function somewhere
-def get_mem_stats(device=None):
-    mem = torch.cuda.memory_stats(device)
-    props = torch.cuda.get_device_properties(device)
-    return {
-        "gpu_name": props.name,
-        "total_gb": 1e-9 * props.total_memory,
-        "curr_alloc_gb": 1e-9 * mem["allocated_bytes.all.current"],
-        "peak_alloc_gb": 1e-9 * mem["allocated_bytes.all.peak"],
-        "curr_resv_gb": 1e-9 * mem["reserved_bytes.all.current"],
-        "peak_resv_gb": 1e-9 * mem["reserved_bytes.all.peak"],
-    }
-
-
 # TODO: clean up type checking, implement error handling
 def dist_run(rank, world_size, cfg, logger):
     print(f"Running DDP on rank {rank}.")
@@ -366,9 +355,6 @@ def dist_run(rank, world_size, cfg, logger):
         sync_model, device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
     print(f"DDP model created on rank {rank}")
-
-    with trainer.name_tracker.set_context("epoch", 1):
-        print(trainer.name_tracker.path)
 
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=trainer.lr)
@@ -393,12 +379,21 @@ def dist_run(rank, world_size, cfg, logger):
 
     for epoch in range(start_epoch, trainer.n_epochs):
         train_sampler.set_epoch(epoch)
+
         with timer(trainer.modelTracker, "epoch_process_time"):
             trainer.train(ddp_model, train_dataloader, optimizer, None, loss_fn)
-            trainer.validate(ddp_model, valid_dataloader, loss_fn)
+            if epoch >= trainer.start_valid:
+                trainer.validate(ddp_model, valid_dataloader, loss_fn)
 
         for tracker in trainer.modelTracker.to_track:
+            if epoch < trainer.start_valid:
+                if tracker == "val_loss":
+                    continue
             trainer.modelTracker.all_reduce_tracker(tracker)
+
+        if trainer.show_mem_stats:
+            print(get_mem_stats(device=device))
+
         if rank == 0:
             vals_to_log = [
                 tracker.running_avg
@@ -411,10 +406,12 @@ def dist_run(rank, world_size, cfg, logger):
                 Epoch process time: {vals_to_log[2]}\n
                 Train loss: {vals_to_log[3]}\n
                 Valid loss: {vals_to_log[4]}""")
+
         if (
             (epoch + 1) in trainer.extra_check or (epoch + 1) % trainer.checkpoint == 0
         ) and rank == 0:
             trainer.write_model(epoch + 1, ddp_model, optimizer)
+
     cleanup()
     print(f"Finished running DDP on rank {rank}.")
 
