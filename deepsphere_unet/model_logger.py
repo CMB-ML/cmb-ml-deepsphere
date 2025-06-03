@@ -113,6 +113,7 @@ def get_mem_stats(device=None):
     mem = torch.cuda.memory_stats(device)
     props = torch.cuda.get_device_properties(device)
     return {
+        "cuda_device": device,
         "gpu_name": props.name,
         "total_gb": 1e-9 * props.total_memory,
         "curr_alloc_gb": 1e-9 * mem["allocated_bytes.all.current"],

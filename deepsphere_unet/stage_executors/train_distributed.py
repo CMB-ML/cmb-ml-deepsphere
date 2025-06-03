@@ -93,8 +93,9 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         self.start_valid = cfg.model.deepsphere.train.start_valid
 
         self.modelTracker = ModelTracker()
-        self.record_header = self.modelTracker.to_track + ["combined_loss"]
-        self.out_loss_record.write(data=self.record_header)
+        if self.rank == 0:
+            self.record_header = self.modelTracker.to_track + ["combined_loss"]
+            self.out_loss_record.write(data=self.record_header)
 
         self.show_mem_stats = cfg.model.deepsphere.train.show_mem_stats
 
@@ -381,6 +382,8 @@ def dist_run(rank, world_size, cfg, logger):
             trainer.write_model("init", ddp_model, optimizer)
         start_epoch = 0
 
+    dist.barrier()
+
     for epoch in range(start_epoch, trainer.n_epochs):
         train_sampler.set_epoch(epoch)
 
@@ -403,6 +406,7 @@ def dist_run(rank, world_size, cfg, logger):
             combined_loss = trainer.modelTracker.get_combined_loss()
 
             trainer.out_loss_record.append(vals_to_log)
+
             print(f"""Epoch: {epoch}\n
                 Batch process time: {vals_to_log[0]}\n
                 Data load time: {vals_to_log[1]}\n
