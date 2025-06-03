@@ -35,6 +35,7 @@ class ModelTracker:
             "train_loss",
             "val_loss",
         ]
+
         self.trackers = {tracker: ValueCounter() for tracker in self.to_track}
 
     def reset_tracker(self, tracker: str):
@@ -51,7 +52,7 @@ class ModelTracker:
             self.trackers[tracker].running_sum / self.trackers[tracker].count
         )
 
-    def all_reduce_tracker(self, tracker):
+    def allreduce_tracker(self, tracker):
         if torch.cuda.is_available():
             device = torch.device("cuda")
         elif torch.backends.mps.is_available():
@@ -71,6 +72,27 @@ class ModelTracker:
         self.trackers[tracker].running_avg = (
             self.trackers[tracker].running_sum / self.trackers[tracker].count
         )
+
+    def allreduce_all_trackers(self, include_val=True):
+        for tracker in self.to_track:
+            if not include_val:
+                if tracker == "val_loss":
+                    continue
+            self.allreduce_tracker(tracker)
+
+        self.combined_loss = (
+            0.8 * self.trackers["val_loss"].running_avg
+            + 0.2 * self.trackers["train_loss"].running_avg
+        )
+
+    def get_combined_loss(self):
+        return self.combined_loss
+
+    def get_log_values(self):
+        log_vals = [tracker.running_avg for tracker in self.trackers.values()] + [
+            self.get_combined_loss()
+        ]
+        return log_vals
 
 
 @contextmanager

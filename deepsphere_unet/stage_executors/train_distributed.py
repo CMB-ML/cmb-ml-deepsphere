@@ -93,7 +93,7 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
         self.start_valid = cfg.model.deepsphere.train.start_valid
 
         self.modelTracker = ModelTracker()
-        self.record_header = self.modelTracker.to_track
+        self.record_header = self.modelTracker.to_track + ["combined_loss"]
         self.out_loss_record.write(data=self.record_header)
 
         self.show_mem_stats = cfg.model.deepsphere.train.show_mem_stats
@@ -334,8 +334,12 @@ class ModelTrainer(BaseDeepSphereModelExecutor):
             )
 
 
+best_loss = float("inf")
+
+
 # TODO: clean up type checking, implement error handling
 def dist_run(rank, world_size, cfg, logger):
+    global best_loss
     print(f"Running DDP on rank {rank}.")
     torch.cuda.set_device(rank)
     device = f"cuda:{rank}"
@@ -385,27 +389,32 @@ def dist_run(rank, world_size, cfg, logger):
             if epoch >= trainer.start_valid:
                 trainer.validate(ddp_model, valid_dataloader, loss_fn)
 
-        for tracker in trainer.modelTracker.to_track:
-            if epoch < trainer.start_valid:
-                if tracker == "val_loss":
-                    continue
-            trainer.modelTracker.all_reduce_tracker(tracker)
+        if epoch < trainer.start_valid:
+            trainer.modelTracker.allreduce_all_trackers(include_val=False)
+        else:
+            trainer.modelTracker.allreduce_all_trackers()
 
         if trainer.show_mem_stats:
             print(get_mem_stats(device=device))
 
         if rank == 0:
-            vals_to_log = [
-                tracker.running_avg
-                for tracker in trainer.modelTracker.trackers.values()
-            ]
+            vals_to_log = trainer.modelTracker.get_log_values()
+
+            combined_loss = trainer.modelTracker.get_combined_loss()
+
             trainer.out_loss_record.append(vals_to_log)
             print(f"""Epoch: {epoch}\n
                 Batch process time: {vals_to_log[0]}\n
                 Data load time: {vals_to_log[1]}\n
                 Epoch process time: {vals_to_log[2]}\n
                 Train loss: {vals_to_log[3]}\n
-                Valid loss: {vals_to_log[4]}""")
+                Valid loss: {vals_to_log[4]}\n
+                Combined loss: {vals_to_log[5]}""")
+
+            if combined_loss < best_loss:
+                print(f"New best model at epoch {epoch}")
+                trainer.write_model("best", ddp_model, optimizer)
+                best_loss = combined_loss
 
         if (
             (epoch + 1) in trainer.extra_check or (epoch + 1) % trainer.checkpoint == 0
@@ -424,12 +433,6 @@ class DistributedDeterministicExecutor(BaseDeepSphereModelExecutor):
         self.world_size = cfg.model.deepsphere.train.n_gpus
 
     def execute(self) -> None:
-        # mp.spawn(
-        #     dist_run,
-        #     args=(self.world_size, self.cfg),
-        #     nprocs=self.world_size,
-        #     join=True,
-        # )
         try:
             mp.spawn(
                 dist_run,
