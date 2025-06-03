@@ -419,6 +419,9 @@ def dist_run(rank, world_size, cfg, logger):
                 print(f"New best model at epoch {epoch}")
                 trainer.write_model("best", ddp_model, optimizer)
                 best_loss = combined_loss
+                res = {"best_epoch": epoch + 1, "best_loss": best_loss}
+                trainer.out_best_epoch.write(data=res)
+                trainer.write_model(epoch + 1, ddp_model, optimizer)
 
         if (
             (epoch + 1) in trainer.extra_check or (epoch + 1) % trainer.checkpoint == 0

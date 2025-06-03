@@ -108,7 +108,6 @@ def timer(model_tracker: ModelTracker, tracker: str):
         model_tracker.update_tracker(tracker, elapsed_time)
 
 
-# TODO: utilize this memory stat function somewhere
 def get_mem_stats(device=None):
     mem = torch.cuda.memory_stats(device)
     props = torch.cuda.get_device_properties(device)

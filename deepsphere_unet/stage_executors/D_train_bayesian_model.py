@@ -1,12 +1,10 @@
-# TODO: Add mixed precision training and gradient checkpointing to Bayesian model
-
-
 import logging
 
 from tqdm import tqdm
 
 import torch
-from torch.utils.data import DataLoader
+from torch import autocast, GradScaler
+from torch.utils.data import DataLoader, Dataset
 from omegaconf import DictConfig
 
 import healpy as hp
@@ -134,7 +132,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
 
         if self.mixed_precision:
             logger.info(f"Using mixed precision training.")
-            scaler = torch.amp.GradScaler(device=self.device)
+            scaler = GradScaler(device=self.device)
         else:
             logger.info(f"Using full precision training.")
             scaler = None
@@ -234,7 +232,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         model: torch.nn.Module,
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
-        scaler: torch.amp.GradScaler,
+        scaler: torch.GradScaler,
         loss_function: torch.nn.Module,
         train: bool,
     ) -> float:
@@ -268,7 +266,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
 
                 if train:
                     if self.mixed_precision:
-                        with torch.amp.autocast(device_type=self.device, enabled=True):
+                        with autocast(device_type=self.device):
                             output = model(features)
                             reg = self.get_regularization(model)
                             loss = loss_function(output, labels) + reg
@@ -305,7 +303,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         model: torch.nn.Module,
         dataloader: DataLoader,
         optimizer: torch.optim.Optimizer,
-        scaler: torch.amp.GradScaler,
+        scaler: torch.GradScaler,
         loss_function: torch.nn.Module,
     ) -> float:
         """Runs the training loop for a single epoch.
@@ -379,7 +377,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
         logger.info(f"Weights transferred successfully.")
         return model
 
-    def set_up_dataset(self, template_split: Split) -> None:
+    def set_up_dataset(self, template_split: Split) -> Dataset:
         cmb_path_template = self.make_fn_template(template_split, self.in_cmb_asset)
         obs_path_template = self.make_fn_template(template_split, self.in_obs_assets)
 
