@@ -360,7 +360,7 @@ class ModelTrainer(BayesianDeepSphereModelExecutor):
             try:
                 det_model_weights = torch.load(
                     self.in_model.path, map_location=self.device, weights_only=True
-                )[0]
+                )["model_state_dict"]
             except FileNotFoundError:
                 logger.warning(
                     "Did not find best epoch model, defaulting to random weights"
