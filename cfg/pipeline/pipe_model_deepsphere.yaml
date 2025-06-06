@@ -20,7 +20,7 @@ train:
   dir_name: DeepSphere_B_Train_Deterministic
   make_stage_log: True
 
-load_bayesian:
+train_bayesian:
   assets_out:
     model: 
       handler: PyTorchModel
