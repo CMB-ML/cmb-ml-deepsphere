@@ -66,8 +66,8 @@ predict_bayesian:
       handler: HealpyMap
       path_template: "{root}/{dataset}/{working}{stage}/{split}/{sim}/uncertainty_{epoch}.fits"
   assets_in:
-    model: {stage: load_bayesian}
-    best_epoch: {stage: load_bayesian}
+    model: {stage: train_bayesian}
+    best_epoch: {stage: train_bayesian}
     obs_maps: {stage: make_sims}
   splits:
     - ${splits.run_inference_on}
