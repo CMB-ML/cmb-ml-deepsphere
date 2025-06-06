@@ -23,6 +23,7 @@ from deepsphere_unet import (
     BayesianTrainingExecutor,
     BayesianPredictionExecutor,
     DistributedDeterministicExecutor,
+    DistributedBayesianExecutor,
 )
 
 
@@ -43,6 +44,7 @@ def run_deepsphere(cfg):
     pipeline_context.add_pipe(DistributedDeterministicExecutor)
     # pipeline_context.add_pipe(PredictionExecutor)
 
+    pipeline_context.add_pipe(DistributedBayesianExecutor)
     # pipeline_context.add_pipe(BayesianTrainingExecutor)
     # pipeline_context.add_pipe(BayesianPredictionExecutor)
 
