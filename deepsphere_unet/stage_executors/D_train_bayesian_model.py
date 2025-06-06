@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
     def __init__(self, cfg: DictConfig) -> None:
-        super().__init__(cfg, stage_str="load_bayesian")
+        super().__init__(cfg, stage_str="train_bayesian")
 
         self.out_model: Asset = self.assets_out["model"]
         self.out_best_epoch: Asset = self.assets_out["best_epoch"]
@@ -115,6 +115,7 @@ class BayesianTrainingExecutor(BayesianDeepSphereModelExecutor):
             loss_record_headers = ["epoch", "train_loss"]
 
         model = self.make_model().to(self.device)
+        print(model.state_dict())
         model = self.transfer_from_deterministic(model)
 
         if self.gradient_checkpointing:

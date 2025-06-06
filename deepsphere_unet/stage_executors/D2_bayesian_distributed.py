@@ -370,10 +370,12 @@ class ModelTrainer(BayesianDeepSphereModelExecutor):
         for key in det_model_weights.keys():
             if key in model.state_dict().keys():
                 model.state_dict()[key].copy_(det_model_weights[key])
-        model.state_dict()["mu_conv.weight"].copy_(
-            det_model_weights["final_conv.weight"]
+        model.state_dict()["module.mu_conv.weight"].copy_(
+            det_model_weights["module.final_conv.weight"]
         )
-        model.state_dict()["mu_conv.bias"].copy_(det_model_weights["final_conv.bias"])
+        model.state_dict()["module.mu_conv.bias"].copy_(
+            det_model_weights["module.final_conv.bias"]
+        )
 
         logger.info("Weights transferred successfully")
         return model
@@ -428,10 +430,10 @@ def dist_run(rank, world_size, cfg, logger):
             start_epoch = 0
     else:
         logger.info("Starting new model")
+        ddp_model = trainer.load_model_weights(ddp_model)
         if rank == 0:
             trainer.write_model("init", ddp_model, optimizer)
         start_epoch = 0
-        ddp_model = trainer.load_model_weights(ddp_model)
 
     dist.barrier()
 
