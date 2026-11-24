@@ -223,11 +223,10 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         Returns:
             float: loss for the epoch
         """
-        n_batches = len(dataloader)
-
         epoch_loss = 0.0
+        n_samples = 0
         batch_n = 0
-        batch_loss = 0
+
         if train:
             model.train()
         else:
@@ -258,18 +257,19 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                         output = model(features)
                         loss = loss_function(output, labels)
 
-                batch_loss += loss.item()
+                batch_size = features.size(0)
+                loss_value = loss.item()
+
+                epoch_loss += loss_value * batch_size
+                n_samples += batch_size
 
                 pbar.set_postfix(
                     {
-                        f"Loss for {batch_n}/{len(dataloader)}": loss.item()
-                        / self.batch_size
+                        f"Loss for {batch_n}/{len(dataloader)}": loss_value
                     }
                 )
 
-                epoch_loss += batch_loss / self.batch_size
-            epoch_loss /= n_batches
-        return epoch_loss
+        return epoch_loss / n_samples
 
     def train(
         self,
