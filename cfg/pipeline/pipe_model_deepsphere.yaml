@@ -51,8 +51,7 @@ predict: &final_inference
     model: {stage: train}
     best_epoch: {stage: train}
     obs_maps: {stage: make_sims}
-  splits:
-    - ${splits.run_inference_on}
+  splits: ${splits.run_inference_on}
   epochs: ${use_epochs}
   dir_name: DeepSphere_D_Predict_Deterministic
   make_stage_log: True
@@ -69,8 +68,7 @@ predict_bayesian:
     model: {stage: train_bayesian}
     best_epoch: {stage: train_bayesian}
     obs_maps: {stage: make_sims}
-  splits:
-    - ${splits.run_inference_on}
+  splits: ${splits.run_inference_on}
   epochs: ${use_epochs}
   dir_name: DeepSphere_E_Predict_Bayesian
   make_stage_log: True
