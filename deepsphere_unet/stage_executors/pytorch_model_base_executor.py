@@ -41,8 +41,19 @@ class BaseDeepSphereModelExecutor(BasePyTorchModelExecutor):
         )
 
     def try_model(self, model):
-        dummy_input = torch.rand(1, hp.nside2npix(self.nside), 9, device=self.device)
-        result = model(dummy_input)
+        dummy_input = torch.rand(
+            1,
+            hp.nside2npix(self.nside),
+            self.model_dict["input_channels"],
+            device=self.device,
+        )
+
+        was_training = model.training
+        model.eval()
+        with torch.no_grad():
+            result = model(dummy_input)
+        model.train(was_training)
+
         logger.debug(f"Output result size: {result.size()}")
 
     def make_model(self):
@@ -88,10 +99,19 @@ class BayesianDeepSphereModelExecutor(BasePyTorchModelExecutor):
         )
 
     def try_model(self, model):
-        dummy_input = torch.rand(1, hp.nside2npix(self.nside), 9, device=self.device)
-        mu, sigma = model(dummy_input)
+        dummy_input = torch.rand(
+            1,
+            hp.nside2npix(self.nside),
+            self.model_dict["input_channels"],
+            device=self.device,
+        )
 
-        # logger.debug(f"Output result size: {result.size()}")
+        was_training = model.training
+        model.eval()
+        with torch.no_grad():
+            mu, sigma = model(dummy_input)
+        model.train(was_training)
+
         logger.debug(f"Output mu size: {mu.size()}")
         logger.debug(f"Output sigma size: {sigma.size()}")
 
