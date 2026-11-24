@@ -6,3 +6,6 @@ from .stage_executors.C_predict_deterministic import PredictionExecutor
 from .stage_executors.D_train_bayesian_model import BayesianTrainingExecutor
 from .stage_executors.D2_bayesian_distributed import DistributedBayesianExecutor
 from .stage_executors.E_predict_bayesian import BayesianPredictionExecutor
+
+from . import laplacian_handler
+from .stage_executors.A_make_laplacians import MakeLaplaciansExecutor

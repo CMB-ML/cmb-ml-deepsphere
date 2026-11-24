@@ -1,3 +1,11 @@
+make_laplacians:
+  assets_out:
+    laplacians:
+      handler: LaplacianHandler
+      path_template: "{src_root}/DeepSphere/Laplacians/nside${scenario.nside}_depth${model.deepsphere.network.depth}_${model.deepsphere.network.laplacian_type}.pt"
+  assets_in: {}
+  make_stage_log: False
+
 train:
   assets_out:
     model: 
