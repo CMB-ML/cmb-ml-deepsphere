@@ -108,8 +108,6 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             valid_dataloader = None
             loss_record_headers = ["epoch", "train_loss"]
 
-        self.out_loss_record.write(data=loss_record_headers)
-
         model = self.make_model().to(self.device)
 
         if self.gradient_checkpointing:
@@ -129,27 +127,42 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             logger.info(f"Using full precision training.")
             scaler = None
 
+        best_loss = float("inf")
+
         if self.restart_epoch is not None:
             logger.info(f"Restarting training at epoch {self.restart_epoch}")
-            # The following returns the epoch number stored in the checkpoint
-            #     as well as loading the model and optimizer with checkpoint information
+
             with self.name_tracker.set_context("epoch", self.restart_epoch):
-                start_epoch = self.in_model.read(
+                model_record = self.in_model.read(
                     model=model,
                     epoch=self.restart_epoch,
                     optimizer=optimizer,
                     scaler=scaler,
                 )
-            if start_epoch == "init":
-                start_epoch = 0
+
+            loaded_epoch = model_record["epoch"]
+            start_epoch = 0 if loaded_epoch == "init" else int(loaded_epoch)
+
+            restored_best_loss = model_record.get("best_loss")
+
+            if restored_best_loss is not None:
+                best_loss = restored_best_loss
+            elif start_epoch > 0:
+                logger.warning(
+                    "Checkpoint does not contain best_loss. "
+                    "Best-model tracking will restart."
+                )
+
+            self.out_loss_record.start()
+
         else:
-            logger.info(f"Starting new model.")
+            logger.info("Starting new model.")
+
             with self.name_tracker.set_context("epoch", "init"):
                 self.out_model.write(model=model, epoch="init")
-            start_epoch = 0
 
-        best_loss = float("inf")
-        best_epoch = 0
+            start_epoch = 0
+            self.out_loss_record.write(data=loss_record_headers)
 
         for epoch in range(start_epoch, self.n_epochs):
             train_loss = self.train(
@@ -185,6 +198,7 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                             optimizer=optimizer,
                             scaler=scaler,
                             epoch=best_epoch,
+                            best_loss=best_loss,
                         )
             else:
                 logger.info(f"Epoch {epoch + 1} Train Loss: {train_loss}")
@@ -198,7 +212,11 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
             if (epoch + 1) in self.extra_check or (epoch + 1) % self.checkpoint == 0:
                 with self.name_tracker.set_context("epoch", epoch + 1):
                     self.out_model.write(
-                        model=model, optimizer=optimizer, scaler=scaler, epoch=epoch + 1
+                        model=model,
+                        optimizer=optimizer,
+                        scaler=scaler,
+                        epoch=epoch + 1,
+                        best_loss=best_loss,
                     )
 
     def one_pass(
