@@ -21,6 +21,7 @@ train:
     model: {stage: train}
     cmb_map: {stage: make_sims}
     obs_maps: {stage: make_sims}
+    laplacians: {stage: make_laplacians}
   splits:
     - train
     - valid
@@ -43,6 +44,7 @@ train_bayesian:
     model: {stage: train}
     cmb_map: {stage: make_sims}
     obs_maps: {stage: make_sims}
+    laplacians: {stage: make_laplacians}
   splits:
     - train
     - valid
@@ -59,6 +61,7 @@ predict: &final_inference
     model: {stage: train}
     best_epoch: {stage: train}
     obs_maps: {stage: make_sims}
+    laplacians: {stage: make_laplacians}
   splits: ${splits.run_inference_on}
   epochs: ${use_epochs}
   dir_name: DeepSphere_D_Predict_Deterministic
@@ -76,6 +79,7 @@ predict_bayesian:
     model: {stage: train_bayesian}
     best_epoch: {stage: train_bayesian}
     obs_maps: {stage: make_sims}
+    laplacians: {stage: make_laplacians}
   splits: ${splits.run_inference_on}
   epochs: ${use_epochs}
   dir_name: DeepSphere_E_Predict_Bayesian

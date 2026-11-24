@@ -13,6 +13,23 @@ from cmbml.torch.pytorch_executor_base import BasePyTorchModelExecutor
 logger = logging.getLogger(__name__)
 
 
+def get_precomputed_laplacian_path(executor, cfg):
+    if not cfg.model.deepsphere.network.use_precomputed_laplacians:
+        return None
+
+    path = executor.assets_in["laplacians"].path
+
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Precomputed Laplacians not found: {path}. "
+            "Run main_deepsphere_laplacians.py first."
+        )
+
+    logger.info(f"Using precomputed Laplacians: {path}")
+
+    return path
+
+
 class BaseDeepSphereModelExecutor(BasePyTorchModelExecutor):
     def __init__(self, cfg: DictConfig, stage_str) -> None:
         super().__init__(cfg, stage_str)
@@ -38,6 +55,7 @@ class BaseDeepSphereModelExecutor(BasePyTorchModelExecutor):
             decoder_channels=decoder_channels,
             laplacian_type=laplacian_type,
             kernel_size=kernel_size,
+            laps=get_precomputed_laplacian_path(self, cfg),
         )
 
     def try_model(self, model):
@@ -96,6 +114,7 @@ class BayesianDeepSphereModelExecutor(BasePyTorchModelExecutor):
             kernel_size=kernel_size,
             weight_regularizer=weight_regularizer,
             dropout_regularizer=dropout_regularizer,
+            laps=get_precomputed_laplacian_path(self, cfg),
         )
 
     def try_model(self, model):
