@@ -27,7 +27,7 @@ def run_deepsphere(cfg):
 
     pipes = [
         DeterministicTrainingExecutor,
-        # PredictionExecutor,
+        PredictionExecutor,
     ]
     run(cfg, pipes)
 

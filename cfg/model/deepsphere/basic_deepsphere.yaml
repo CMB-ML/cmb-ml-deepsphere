@@ -6,8 +6,8 @@ scaling: meanstdv_global
 train:
   # Execution
   device                 : null
-  distributed            : true
-  n_gpus                 : 2
+  distributed            : false
+  n_gpus                 : 1
   gradient_checkpointing : true
   mixed_precision        : false
   show_mem_stats         : true
@@ -15,14 +15,14 @@ train:
   # Optimization
   optimizer              : Adam
   loss                   : L1Loss
-  learning_rate          : 0.0003
-  batch_size             : 11
+  learning_rate          : 0.001
+  batch_size             : 1
   n_epochs               : ${num_epochs_deterministic}
   start_valid            : ${num_epochs_d_valid}
 
   # Checkpointing
   checkpoint_every       : 5
-  extra_check            : [1, 2, 3, 6, 9]
+  extra_check            : [1, 2, 3, 7]
   restart_epoch          : null
 train_bayesian:
   device                 : null  # Goes to None in python
@@ -39,7 +39,7 @@ train_bayesian:
   show_mem_stats         : true
 predict:
   device           : null  # Goes to None in python
-  batch_size       : 11
+  batch_size       : 1
   best_epoch       : null
 predict_bayesian:
   batch_size       : 7
