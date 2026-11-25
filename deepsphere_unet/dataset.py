@@ -136,3 +136,93 @@ def _get_label_idx(path_template, handler, n_map_fields, sim_idx):
     if label.shape[0] == 3 and n_map_fields == 1:
         label = label[0, :]
     return label
+
+
+class PreprocessedTestCMBMapDataset(Dataset):
+    def __init__(
+        self,
+        n_sims,
+        freqs,
+        feature_path_template,
+        feature_handler,
+        feature_transform,
+    ):
+        self.n_sims = n_sims
+        self.freqs = list(freqs)
+        self.feature_path_template = feature_path_template
+        self.feature_handler = feature_handler
+        self.feature_transform = feature_transform
+
+    def __len__(self):
+        return self.n_sims
+
+    def get_features(self, sim_idx):
+        features = []
+
+        for freq in self.freqs:
+            path = self.feature_path_template.format(
+                sim_idx=sim_idx,
+                freq=freq,
+            )
+
+            data = self.feature_handler.read(path)
+
+            features.append(
+                torch.as_tensor(data, dtype=torch.float32)
+            )
+
+        # [C, Npix]
+        features = torch.stack(features, dim=0)
+
+        features = self.feature_transform(features)
+
+        # DeepSphere expects [Npix, C].
+        return features.transpose(0, 1).contiguous()
+
+    def __getitem__(self, sim_idx):
+        return self.get_features(sim_idx), sim_idx
+
+
+class PreprocessedTrainCMBMapDataset(
+    PreprocessedTestCMBMapDataset
+):
+    def __init__(
+        self,
+        n_sims,
+        freqs,
+        feature_path_template,
+        feature_handler,
+        feature_transform,
+        label_path_template,
+        label_handler,
+        target_transform,
+    ):
+        super().__init__(
+            n_sims=n_sims,
+            freqs=freqs,
+            feature_path_template=feature_path_template,
+            feature_handler=feature_handler,
+            feature_transform=feature_transform,
+        )
+
+        self.label_path_template = label_path_template
+        self.label_handler = label_handler
+        self.target_transform = target_transform
+
+    def __getitem__(self, sim_idx):
+        features = self.get_features(sim_idx)
+
+        path = self.label_path_template.format(
+            sim_idx=sim_idx
+        )
+
+        label = self.label_handler.read(path)
+
+        label = torch.as_tensor(
+            label, dtype=torch.float32
+        ).unsqueeze(0)
+
+        # [1, Npix]
+        label = self.target_transform(label)
+
+        return features, label

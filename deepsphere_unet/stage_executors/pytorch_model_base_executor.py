@@ -7,7 +7,9 @@ import torch
 from deepsphere_unet.deepsphere.deterministic_unet import SphericalUNet
 from deepsphere_unet.deepsphere.bayesian_unet import BayesianSphericalUNet
 
+from cmbml.core.asset_handlers import Config
 from cmbml.torch.pytorch_executor_base import BasePyTorchModelExecutor
+from cmbml.sim_stats.utils.transforms import make_map_transforms
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +37,10 @@ class BaseDeepSphereModelExecutor(BasePyTorchModelExecutor):
         super().__init__(cfg, stage_str)
 
         # self.nside = cfg.scenario.nside
+        self.in_scalar_stats = self.assets_in["scalar_stats"]
+        in_scalar_stats_handler: Config
+
+        self.scaling = cfg.model.deepsphere.scaling
 
         input_channels = cfg.scenario.detector_freqs
         depth = cfg.model.deepsphere.network.depth
@@ -56,6 +62,13 @@ class BaseDeepSphereModelExecutor(BasePyTorchModelExecutor):
             laplacian_type=laplacian_type,
             kernel_size=kernel_size,
             laps=get_precomputed_laplacian_path(self, cfg),
+        )
+
+    def build_transforms(self):
+        return make_map_transforms(
+            scaling=self.scaling,
+            freqs=list(self.instrument.dets.keys()),
+            scalar_stats=self.in_scalar_stats.read(),
         )
 
     def try_model(self, model):

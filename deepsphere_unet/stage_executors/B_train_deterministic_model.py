@@ -12,11 +12,10 @@ import healpy as hp
 from .pytorch_model_base_executor import BaseDeepSphereModelExecutor
 from cmbml.core import Split, Asset
 
-from cmbml.core.asset_handlers import HealpyMap, Config, AppendingCsvHandler
-
+from cmbml.core.asset_handlers import Config, AppendingCsvHandler, NumpyMap
 from cmbml.torch.pytorch_model_handler import PyTorchModel  # Import for typing hint
 
-from deepsphere_unet.dataset import TrainCMBMapDataset
+from deepsphere_unet.dataset import PreprocessedTrainCMBMapDataset
 
 
 logger = logging.getLogger(__name__)
@@ -37,8 +36,8 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         self.in_cmb_asset: Asset = self.assets_in["cmb_map"]
         self.in_obs_assets: Asset = self.assets_in["obs_maps"]
         in_model_handler: PyTorchModel
-        in_cmb_map_handler: HealpyMap
-        in_obs_map_handler: HealpyMap
+        in_cmb_map_handler: NumpyMap
+        in_obs_map_handler: NumpyMap
 
         model_precision = "float"
         self.dtype = self.dtype_mapping[model_precision]
@@ -49,14 +48,17 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
 
         self.gradient_checkpointing = cfg.model.deepsphere.train.gradient_checkpointing
         self.mixed_precision = cfg.model.deepsphere.train.mixed_precision
+
+        self.optimizer_name = cfg.model.deepsphere.train.optimizer
+        self.loss_name = cfg.model.deepsphere.train.loss
         self.lr = cfg.model.deepsphere.train.learning_rate
-        self.n_epochs = cfg.model.deepsphere.train.n_epochs
         self.batch_size = cfg.model.deepsphere.train.batch_size
+        self.n_epochs = cfg.model.deepsphere.train.n_epochs
+        self.start_valid = cfg.model.deepsphere.train.start_valid
+
         self.checkpoint = cfg.model.deepsphere.train.checkpoint_every
         self.extra_check = cfg.model.deepsphere.train.extra_check
-
         self.restart_epoch = cfg.model.deepsphere.train.restart_epoch
-        self.start_valid = cfg.model.deepsphere.train.start_valid
 
     def execute(self) -> None:
         logger.debug(f"Running {self.__class__.__name__} execute()")
@@ -117,9 +119,20 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         logger.debug(f"Testing model output: ")
         self.try_model(model)
 
-        lr = self.lr
-        loss_function = torch.nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+        loss_function = getattr(
+            torch.nn, self.loss_name
+        )()
+
+        optimizer = getattr(
+            torch.optim, self.optimizer_name
+        )(
+            model.parameters(),
+            lr=self.lr,
+        )
+
+        logger.info(f"Optimizer: {self.optimizer_name}")
+        logger.info(f"Loss function: {self.loss_name}")
+
         if self.mixed_precision:
             logger.info(f"Using mixed precision training.")
             scaler = GradScaler(device=self.device)
@@ -174,9 +187,10 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
                     self.out_loss_record.append(
                         data=[epoch + 1, train_loss, valid_loss]
                     )
-                    combined_loss = (
-                        0.8 * valid_loss + 0.2 * train_loss
-                    )  # Per Adams paper, select best model based on this weighted loss
+                    combined_loss = valid_loss
+                    # combined_loss = (
+                    #     0.8 * valid_loss + 0.2 * train_loss
+                    # )  # Per Adams paper, select best model based on this weighted loss
                     logger.info(
                         f"Epoch {epoch + 1} Train Loss: {train_loss}, Valid Loss: {valid_loss}, Combined Loss: {combined_loss}"
                     )
@@ -340,18 +354,26 @@ class DeterministicTrainingExecutor(BaseDeepSphereModelExecutor):
         )
 
     def set_up_dataset(self, template_split: Split) -> Dataset:
-        cmb_path_template = self.make_fn_template(template_split, self.in_cmb_asset)
-        obs_path_template = self.make_fn_template(template_split, self.in_obs_assets)
+        cmb_path_template = self.make_fn_template(
+            template_split, self.in_cmb_asset
+        )
+        obs_path_template = self.make_fn_template(
+            template_split, self.in_obs_assets
+        )
 
-        dataset = TrainCMBMapDataset(
+        feature_transform, target_transform = self.build_transforms()
+
+        dataset = PreprocessedTrainCMBMapDataset(
             n_sims=template_split.n_sims,
             freqs=self.instrument.dets.keys(),
-            map_fields=self.map_fields,
             label_path_template=cmb_path_template,
-            label_handler=HealpyMap(),
+            label_handler=NumpyMap(),
             feature_path_template=obs_path_template,
-            feature_handler=HealpyMap(),
+            feature_handler=NumpyMap(),
+            feature_transform=feature_transform,
+            target_transform=target_transform,
         )
+
         return dataset
 
     def inspect_data(self, dataloader):

@@ -19,8 +19,9 @@ train:
       path_template: "{root}/{dataset}/{working}{stage}/loss_record.csv"
   assets_in:
     model: {stage: train}
-    cmb_map: {stage: make_sims}
-    obs_maps: {stage: make_sims}
+    cmb_map: {stage: data_preprocess}
+    obs_maps: {stage: data_preprocess}
+    scalar_stats: {stage: get_data_stats}
     laplacians: {stage: make_laplacians}
   splits:
     - train
@@ -42,8 +43,9 @@ train_bayesian:
       path_template: "{root}/{dataset}/{working}{stage}/loss_record.csv"
   assets_in:
     model: {stage: train}
-    cmb_map: {stage: make_sims}
-    obs_maps: {stage: make_sims}
+    cmb_map: {stage: data_preprocess}
+    obs_maps: {stage: data_preprocess}
+    scalar_stats: {stage: get_data_stats}  # TODO: Revisit. Normalization issues may exist.
     laplacians: {stage: make_laplacians}
   splits:
     - train
@@ -60,7 +62,8 @@ predict: &final_inference
   assets_in:
     model: {stage: train}
     best_epoch: {stage: train}
-    obs_maps: {stage: make_sims}
+    obs_maps: {stage: data_preprocess}
+    scalar_stats: {stage: get_data_stats}
     laplacians: {stage: make_laplacians}
   splits: ${splits.run_inference_on}
   epochs: ${use_epochs}
@@ -78,7 +81,8 @@ predict_bayesian:
   assets_in:
     model: {stage: train_bayesian}
     best_epoch: {stage: train_bayesian}
-    obs_maps: {stage: make_sims}
+    obs_maps: {stage: data_preprocess}
+    scalar_stats: {stage: get_data_stats}  # TODO: Revisit. Normalization issues may exist.
     laplacians: {stage: make_laplacians}
   splits: ${splits.run_inference_on}
   epochs: ${use_epochs}

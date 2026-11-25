@@ -8,11 +8,11 @@ from tqdm import tqdm
 from omegaconf import DictConfig
 
 from cmbml.core import Split, Asset
+from cmbml.core.asset_handlers import HealpyMap, NumpyMap   # Import for typing hint
 from cmbml.torch.pytorch_model_handler import PyTorchModel  # Import for typing hint
 from .pytorch_model_base_executor import BaseDeepSphereModelExecutor
-from cmbml.core.asset_handlers import HealpyMap            # Import for typing hint
+from deepsphere_unet.dataset import PreprocessedTestCMBMapDataset
 
-from deepsphere_unet.dataset import TestCMBMapDataset
 import healpy as hp
 
 
@@ -55,32 +55,50 @@ class PredictionExecutor(BaseDeepSphereModelExecutor):
                         self.process_split(model, split)
 
     def process_split(self, model, split):
-        dataset = self.set_up_dataset(split)
+        dataset, target_transform = self.set_up_dataset(split)
+
         dataloader = DataLoader(
-            dataset, 
-            batch_size=self.batch_size, 
-            shuffle=False
-            )
+            dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+        )
 
         with torch.no_grad():
             for features, idcs in tqdm(dataloader):
-                features_prepped = features.to(device=self.device, dtype=self.dtype)
+                features_prepped = features.to(
+                    device=self.device,
+                    dtype=self.dtype,
+                )
+
                 predictions = model(features_prepped)
+
                 for pred, idx in zip(predictions, idcs):
-                    with self.name_tracker.set_context("sim_num", idx.item()):
+                    with self.name_tracker.set_context(
+                        "sim_num", idx.item()
+                    ):
+                        pred = target_transform.inverse(pred)
+
                         pred_npy = pred.detach().cpu().numpy()
                         pred_npy = hp.reorder(pred_npy, n2r=True)
-                        self.out_cmb_asset.write(data=pred_npy, column_units=['uK_CMB'])
 
-    def set_up_dataset(self, template_split: Split) -> None:
-        # We create a dataset for each split instead of a dataset that covers all
-        obs_path_template = self.make_fn_template(template_split, self.in_obs_assets)
+                        self.out_cmb_asset.write(
+                            data=pred_npy,
+                            column_units=["uK_CMB"],
+                        )
 
-        dataset = TestCMBMapDataset(
-            n_sims = template_split.n_sims,
-            freqs = self.instrument.dets.keys(),
-            map_fields=self.map_fields,
+    def set_up_dataset(self, template_split: Split):
+        obs_path_template = self.make_fn_template(
+            template_split, self.in_obs_assets
+        )
+
+        feature_transform, target_transform = self.build_transforms()
+
+        dataset = PreprocessedTestCMBMapDataset(
+            n_sims=template_split.n_sims,
+            freqs=self.instrument.dets.keys(),
             feature_path_template=obs_path_template,
-            feature_handler=HealpyMap()
-            )
-        return dataset
+            feature_handler=NumpyMap(),
+            feature_transform=feature_transform,
+        )
+
+        return dataset, target_transform
